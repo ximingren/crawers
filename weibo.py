@@ -610,8 +610,8 @@ if __name__ == "__main__":
         'Cookie': ' '
     }
 
-    username = "987327263@qq.com"
-    password = "fengdou123"
+    username = ""
+    password = ""
     login_condition = "1"  # 1代表用游览器获取cookie,非1代表需要自己手动获取cookie并存入文件
     try:
         if login_condition == "1":
