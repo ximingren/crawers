@@ -2,6 +2,7 @@
 # -*- coding=utf-8 -*-
 import socket
 import urllib.parse
+from multiprocessing.pool import Pool
 from urllib.request import urlopen, Request
 import pandas as pd
 import re
@@ -554,13 +555,43 @@ def get_contents_page(weibo_id, name, headers, pagebar, page):
     except Exception as e:
         print("----------发生异常",e)
 
+def claw_main(name):
+
+        print("----------------------爬取%s的关注者数,粉丝数以及微博数" % name)
+        info = get_info(name, headers)  # 获取个人信息
+        if info:
+            weibo_id = str(info[2])  # 微博id
+            print("----------------------要爬取的账号的ID：" + weibo_id)
+            print("-----------------------------------------爬取关注列表,共有%d页" % (info[0]))
+            get_subs(weibo_id, name, headers, info[0])
+            print("-----------10秒后爬取粉丝列表")
+            time.sleep(10)
+            print("-----------------------------------------爬取粉丝列表,共有%d页" % (info[1]))
+            get_fans(weibo_id, name, headers, info[1])
+            print("-----------10秒后爬取文本列表")
+            time.sleep(10)
+            content_page = get_contents_page(weibo_id, name, headers, 1, 1)
+            print("-----------------------------------------爬取微博文本,共有%d页" % (content_page))
+            for page in range(content_page):  # info[2]是微博列表的总页码
+                print("-----------------正在爬取第%d页顶部内容" % (page + 1))
+                get_top_contents(weibo_id, name, headers, page + 1)  # 先加载出顶部微博内容
+                time.sleep(3)
+                for slide in range(0, 2):  # 两次下滑加载内容
+                    print("-----------------正在爬取第%d页内容------第%d次滑动加载更多" % (page + 1, slide + 1))
+                    get_contents(weibo_id, name, headers, slide, page, content_page)
+                    print("---------------------休眠3秒后继续爬下一次滑动")
+                    time.sleep(3)
+                print("---------------------休眠3秒后继续爬下一页")
+                time.sleep(3)
+            print("-----------30秒后爬取下一个用户的信息")
+            time.sleep(30)
 # 程序的入口
 
 if __name__ == "__main__":
     """下面是定义各种属性的地方，有一些需要根据自己实际情况来定"""
     weibo_url = "http://weibo.com/"  # 微博域名
     api_url = "http://weibo.com/p/aj/v6/mblog/mbloglist?"  # 微博文本抓取的apt
-    excel_name = '19520816_0_个人性格调查问卷_101_101(1).xls'
+    excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
     cookie_save_file = "cookie.txt"  # 默认的存cookie的文件名
     cookie_update_time_file = "cookie_timestamp.txt"  # 默认的存cookie时间戳的文件名
@@ -579,8 +610,8 @@ if __name__ == "__main__":
         'Cookie': ' '
     }
 
-    username = ""
-    password = ""
+    username = "987327263@qq.com"
+    password = "fengdou123"
     login_condition = "1"  # 1代表用游览器获取cookie,非1代表需要自己手动获取cookie并存入文件
     try:
         if login_condition == "1":
@@ -593,35 +624,7 @@ if __name__ == "__main__":
             headers["Cookie"] = cookie  # 将cookie加入到头文件中
             data = pd.read_excel(excel_name)  # 读取excel表格
             names_list = data['微博昵称']  # 获取昵称的列值
-            for x in range(len(names_list)):
-                name = names_list[x]
-                print("----------------------爬取%s的关注者数,粉丝数以及微博数" % name)
-                info = get_info(name, headers)  # 获取个人信息
-                if info:
-                    weibo_id = str(info[2])  # 微博id
-                    print("----------------------要爬取的账号的ID：" + weibo_id)
-                    print("-----------------------------------------爬取关注列表,共有%d页"%(info[0]))
-                    get_subs(weibo_id, name, headers, info[0])
-                    print("-----------10秒后爬取粉丝列表")
-                    time.sleep(10)
-                    print("-----------------------------------------爬取粉丝列表,共有%d页"%(info[1]))
-                    get_fans(weibo_id, name, headers,info[1])
-                    print("-----------10秒后爬取文本列表")
-                    time.sleep(10)
-                    content_page = get_contents_page(weibo_id, name, headers, 1, 1)
-                    print("-----------------------------------------爬取微博文本,共有%d页"%(content_page))
-                    for page in range(content_page):  # info[2]是微博列表的总页码
-                        print("-----------------正在爬取第%d页顶部内容" % (page + 1))
-                        get_top_contents(weibo_id, name, headers,  page + 1)  # 先加载出顶部微博内容
-                        time.sleep(3)
-                        for slide in range(0, 2):  # 两次下滑加载内容
-                            print("-----------------正在爬取第%d页内容------第%d次滑动加载更多" % (page + 1, slide + 1))
-                            get_contents(weibo_id, name, headers, slide, page,content_page)
-                            print("---------------------休眠3秒后继续爬下一次滑动")
-                            time.sleep(3)
-                        print("---------------------休眠3秒后继续爬下一页")
-                        time.sleep(3)
-                    print("-----------30秒后爬取下一个用户的信息")
-                    time.sleep(30)
+            pool=Pool(5)
+            pool.map(claw_main,names_list)
     except Exception as e:
         print(e)
