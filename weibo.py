@@ -2,8 +2,11 @@
 # -*- coding=utf-8 -*-
 import socket
 import urllib.parse
+from lxml import etree
 from multiprocessing.pool import Pool
+from urllib import request
 from urllib.request import urlopen, Request
+import http.cookiejar
 import pandas as pd
 import re
 import requests
@@ -21,10 +24,14 @@ import json
     !!!由于微博的限制，现在爬虫只能爬前5页的粉丝列表以及关注列表，除非用其它方法!!!
 """
 
-"""
-    urlopen error 10060错误
-"""
+
 def openlink(url,headers):
+    """
+    urlopen error 10060错误
+    :param url:  请求的网址
+    :param headers: 报文头部信息
+    :return: 服务器响应
+    """
     maxTryNum = 15
     for tries in range(maxTryNum):
         try:
@@ -37,12 +44,13 @@ def openlink(url,headers):
             else:
                 print("尝试%d 次连接网址%s失败!"%( maxTryNum, url))
 
-"""
-    获取当前系统时间戳
-"""
 
 
 def get_timestamp():  # 获取当前系统时间戳
+    """
+    获取当前系统时间戳
+    :return:  系统时间戳
+    """
     try:
         tamp = time.time()
         timestamp = str(int(tamp)) + "000"
@@ -59,6 +67,13 @@ def get_timestamp():  # 获取当前系统时间戳
 
 
 def login(username, password, driver_path):
+    """
+    利用webdriver来登陆然后获取cookie
+    :param username: 帐号
+    :param password: 密码
+    :param driver_path: driver路径
+    :return: cookie
+    """
     try:
         print("--------------------微博账号：" + username)
         print("--------------------微博密码：" + password)
@@ -84,12 +99,14 @@ def login(username, password, driver_path):
         print(e)
 
 
-"""
-    登陆获取cookie
-"""
 
 
 def login_weibo_get_cookies(driver):  # 登录获取cookies
+    """
+    登陆获取cookie,然后进行处理
+    :param driver: chromedriver
+    :return: 处理后的cookie
+    """
     try:
         time.sleep(2)
         driver.find_element_by_name("username").send_keys(username)  ##输入用户名
@@ -112,6 +129,12 @@ def login_weibo_get_cookies(driver):  # 登录获取cookies
 
 
 def direct_get_cookies(cookie_save_file):
+    """
+    从cookie文件中直接获取cookie
+    :param cookie_save_file: cookie保存的文件名
+    :return: cookie,文件存在
+    :return: False,文件不存在时
+    """
     try:
         if os.path.exists(cookie_save_file):
             with open(cookie_save_file) as f:
@@ -130,12 +153,14 @@ def direct_get_cookies(cookie_save_file):
         pass
 
 
-"""
-    把cookie存到本地
-"""
 
 
 def save_cookie(cookie):  # 把cookie存到本地
+    """
+    把cookie保存到本地
+    :param cookie:
+    :return:
+    """
     try:
         with open(cookie_save_file, 'w') as f:
             f.write(cookie)
@@ -145,12 +170,12 @@ def save_cookie(cookie):  # 把cookie存到本地
         pass
 
 
-"""
-    从本地文件中读取cookie
-"""
 
-
-def get_cookie_from_txt():  # 从本地文件里读取cookie
+def get_cookie_from_txt():
+    """
+    从本地文件里读取cookie
+    :return:  cookie
+    """
     try:
         with open(cookie_save_file) as f:
             cookie = f.read()
@@ -162,12 +187,14 @@ def get_cookie_from_txt():  # 从本地文件里读取cookie
         pass
 
 
-"""
-    把cookie存储的时间戳存到本地
-"""
 
 
-def save_cookie_update_timestamp(timestamp):  # 把cookie存到本地
+def save_cookie_update_timestamp(timestamp):
+    """
+    把cookie存储时候的时间戳存到本地
+    :param timestamp:
+    :return:
+    """
     try:
         with open(cookie_update_time_file, 'w') as f:
             f.write(timestamp)
@@ -178,12 +205,11 @@ def save_cookie_update_timestamp(timestamp):  # 把cookie存到本地
         pass
 
 
-"""
+def get_cookie_update_time_from_txt():
+    """
     获取上一次cookie更新时间
-"""
-
-
-def get_cookie_update_time_from_txt():  # 获取上一次cookie更新时间
+    :return: cookie的更新时间
+    """
     try:
         with open(cookie_update_time_file) as f:
             lines = f.readlines()
@@ -195,12 +221,13 @@ def get_cookie_update_time_from_txt():  # 获取上一次cookie更新时间
     finally:
         pass
 
-"""
-    创建新目录(若不存在)
-"""
-
 
 def mkdir(path):
+    """
+    创建新目录(如果不存在)
+    :param path:
+    :return:
+    """
     try:
         folder = os.path.exists(path)
         if not folder:
@@ -211,12 +238,13 @@ def mkdir(path):
         pass
 
 
-"""
+
+def is_valid_cookie():
+    """
     判断cookie是否有效
-"""
-
-
-def is_valid_cookie():  # 判断cookie是否有效
+    :return: False,无效
+    :return: True,有效
+    """
     try:
         # 如果连文件都不存在的话,那肯定时第一次访问,定为False使其进行第一次记录cookie
         if os.path.isfile(cookie_update_time_file) == False:
@@ -240,13 +268,15 @@ def is_valid_cookie():  # 判断cookie是否有效
         pass
 
 
-"""
-    某些内容是藏在script里面的,解析script得到需要的html内容
-    若不懂可以打印出最开始的html文本来看一下
-"""
 
 
 def analyse_html(soup, name):
+    """
+    HTML代码藏在script中，解析出HTML代码
+    :param soup: BeautifulSoup对象
+    :param name: 所需的html所在的script的name
+    :return: 包含结果html的beautifulsoup
+    """
     try:
         script_list = soup.find_all("script")  # 要抓取的内容在scirpt里面,首先先解析出script
         script_size = len(script_list)
@@ -270,6 +300,13 @@ def analyse_html(soup, name):
 
 
 def get_info(name, headers):
+    """
+    获取用户的订阅者数、粉丝数、微博数
+    :param name: 用户昵称
+    :param headers: 报文头部信息
+    :return: condition: 若用户存在,condition为list[subs_page,fans_page,id]
+    :return: condition: 若用户不存在,condition为空list
+    """
     try:
         info_response = requests.get("https://m.weibo.cn/api/container/getIndex?containerid=100103type%3D3%26q%3D" + name+"&page_type=searchall")  # 微博搜索的页面url
         data = json.loads(info_response.text)
@@ -295,7 +332,7 @@ def get_info(name, headers):
                             subs_page=1
                         else:
                             subs_page=0
-                        condition=[subs_page,fans_size,id]
+                        condition=[subs_page,fans_page,id]
         if not condition:
             print("----------------------将失效昵称写入文件中,失效昵称:%s" % name)
             with open('failure.txt', 'a') as f:
@@ -311,6 +348,14 @@ def get_info(name, headers):
     获取顶部微博文本
 """
 def get_top_contents(weibo_id, name, headers,  page):
+    """
+    获取顶部微博文本
+    :param weibo_id: 用户ID
+    :param name: 用户昵称
+    :param headers: 头部信息
+    :param page: 页码
+    :return:
+    """
     try:
         headers['Referer'] = "https://weibo.com/p/100505" + weibo_id
         cont_url = "https://weibo.com/p/100505" + weibo_id + "?is_search=0&visible=0&is_all=1&is_tag=0&profile_ftype=1&page="+str(page)  # 拼凑成关注者列表的页面url
@@ -355,7 +400,17 @@ def get_top_contents(weibo_id, name, headers,  page):
 """
 
 
-def  get_contents(weibo_id, name, headers, pagebar, page,content_page):  # 通过微博ID和cookie来调取接口
+def  get_contents(weibo_id, name, headers, pagebar, page,content_page):
+    """
+    通过微博ID和cookie来调取接口
+    :param weibo_id: 用户ID
+    :param name: 用户昵称
+    :param headers: 头部信息
+    :param pagebar:滑动页码
+    :param page:页码
+    :param content_page:总微博页码
+    :return:
+    """
     try:
         headers['Referer'] = "https://weibo.com/p/100505" + weibo_id
         weibo_div_size = 0
@@ -369,8 +424,8 @@ def  get_contents(weibo_id, name, headers, pagebar, page,content_page):  # 通�
                  "pl_name": "Pl_Official_MyProfileFeed__22", "id": "100505" + weibo_id,
                  "script_uri": "/p/" + "100505" + weibo_id,
                  'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
-                 '__rnd': get_timestamp()}).encode()  # 调用接口时所用的参数
-            cont_url = api_url + "%s" % (params).decode()
+                 '__rnd': get_timestamp()})  # 调用接口时所用的参数
+            cont_url = api_url + "%s" % (params)
             print("---------------请求连接到微博内容页面:%s" % cont_url)
             response=openlink(cont_url,headers)
             html = response.read().decode()  # 对调用接口后传过来的内容进行解码
@@ -415,12 +470,18 @@ def  get_contents(weibo_id, name, headers, pagebar, page,content_page):  # 通�
         pass
 
 
-"""
-    获取关注者的信息并写入文件
-"""
 
 
-def get_subs(weibo_id, name, headers, subs_list_page):  # 每一页顶部微博
+
+def get_subs(weibo_id, name, headers, subs_list_page):
+    """
+    获取订阅者的信息并写入文件
+    :param weibo_id: 微薄ID
+    :param name: 微薄昵称
+    :param headers: 头部信息
+    :param subs_list_page: 订阅者列表总页码
+    :return:
+    """
     try:
         if subs_list_page > 5:
             subs_list_page = 5
@@ -466,12 +527,17 @@ def get_subs(weibo_id, name, headers, subs_list_page):  # 每一页顶部微博
         pass
 
 
-"""
-    获取粉丝的信息
-"""
 
 
-def get_fans(weibo_id, name, headers, fans_list_page):  # 每一页顶部微博
+def get_fans(weibo_id, name, headers, fans_list_page):
+    """
+    获取粉丝信息并写入文件
+    :param weibo_id: 微薄ID
+    :param name: 微薄昵称
+    :param headers: 头部信息
+    :param fans_list_page: 粉丝列表总页码
+    :return:
+    """
     try:
         if fans_list_page > 5:
             fans_list_page = 5
@@ -518,6 +584,15 @@ def get_fans(weibo_id, name, headers, fans_list_page):  # 每一页顶部微博
         pass
 
 def get_contents_page(weibo_id, name, headers, pagebar, page):
+    """
+    获取微博内容并写入文件
+    :param weibo_id: 微薄ID
+    :param name: 微薄昵称
+    :param headers: 头部信息
+    :param pagebar: 滑动页面
+    :param page: 页码
+    :return:
+    """
     try:
         headers['Referer'] = "https://weibo.com/p/100505" + weibo_id
         url = "https://weibo.com/p/100505" + weibo_id + "/home?profile_ftype=1&is_all=1#_0"
@@ -542,8 +617,8 @@ def get_contents_page(weibo_id, name, headers, pagebar, page):
                      "pl_name": "Pl_Official_MyProfileFeed__22", "id": "100505" + weibo_id,
                      "script_uri": "/p/" + "100505" + weibo_id,
                      'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
-                     '__rnd': get_timestamp()}).encode()  # 调用接口时所用的参数
-                cont_url = api_url + "%s" % (params).decode()
+                     '__rnd': get_timestamp()})  # 调用接口时所用的参数
+                cont_url = api_url + "%s" % (params)
                 print("---------------请求连接到微博内容页面:%s" % cont_url)
                 response=openlink(cont_url,headers)
                 html = response.read().decode()  # 对调用接口后传过来的内容进行解码
@@ -554,22 +629,30 @@ def get_contents_page(weibo_id, name, headers, pagebar, page):
                 return content_page
     except Exception as e:
         print("----------发生异常",e)
+    except urllib.error.URLError as e:
+        if isinstance(e.reason,socket.timeout):
+            print("连接超时")
+
 
 def claw_main(name):
-
+        """
+        爬虫程序入口
+        :param name:微薄昵称
+        :return:
+        """
         print("----------------------爬取%s的关注者数,粉丝数以及微博数" % name)
         info = get_info(name, headers)  # 获取个人信息
         if info:
             weibo_id = str(info[2])  # 微博id
             print("----------------------要爬取的账号的ID：" + weibo_id)
-            print("-----------------------------------------爬取关注列表,共有%d页" % (info[0]))
-            get_subs(weibo_id, name, headers, info[0])
-            print("-----------10秒后爬取粉丝列表")
-            time.sleep(10)
-            print("-----------------------------------------爬取粉丝列表,共有%d页" % (info[1]))
-            get_fans(weibo_id, name, headers, info[1])
-            print("-----------10秒后爬取文本列表")
-            time.sleep(10)
+            # print("-----------------------------------------爬取关注列表,共有%d页" % (info[0]))
+            # get_subs(weibo_id, name, headers, info[0])
+            # print("-----------10秒后爬取粉丝列表")
+            # time.sleep(10)
+            # print("-----------------------------------------爬取粉丝列表,共有%d页" % (info[1]))
+            # get_fans(weibo_id, name, headers, info[1])
+            # print("-----------10秒后爬取文本列表")
+            # time.sleep(10)
             content_page = get_contents_page(weibo_id, name, headers, 1, 1)
             print("-----------------------------------------爬取微博文本,共有%d页" % (content_page))
             for page in range(content_page):  # info[2]是微博列表的总页码
@@ -585,8 +668,8 @@ def claw_main(name):
                 time.sleep(3)
             print("-----------30秒后爬取下一个用户的信息")
             time.sleep(30)
-# 程序的入口
 
+#主程序入口
 if __name__ == "__main__":
     """下面是定义各种属性的地方，有一些需要根据自己实际情况来定"""
     weibo_url = "http://weibo.com/"  # 微博域名
@@ -615,6 +698,7 @@ if __name__ == "__main__":
     login_condition = "1"  # 1代表用游览器获取cookie,非1代表需要自己手动获取cookie并存入文件
     try:
         if login_condition == "1":
+
             driver_path = input("请输入游览器引擎的路径")
             cookie = login(username, password, driver_path)  # 实地登陆
         else:
