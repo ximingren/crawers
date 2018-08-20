@@ -33,7 +33,7 @@ import login_simulation
 # TODO(ximingren): list index out of range;'NoneType' object is not callable
 # TODO(ximingren): 添加日志功能  OK!!
 # TODO(ximingren): 存储到数据库中
-# TODO(ximingren): 构建IP代理池
+# TODO(ximingren): 构建IP代理池 （暂时只是用了他人代建的代理池实现了代理爬取）
 # TODO(ximingren): 优化变量命名
 # TODO(ximingren): 模拟登陆而不用selenium获取cookie OK!!
 # TODO(ximingren): 实现模拟登录  OK!!
@@ -67,7 +67,10 @@ def openlink(url, session):
     maxTryNum = 15
     for tries in range(maxTryNum):
         try:
-            response = session.get(url)
+            if use_proxy:
+                response=session.get(url,proxies=proxies)
+            else:
+                response = session.get(url)
             return response
         except:
             if tries < (maxTryNum - 1):
@@ -166,7 +169,10 @@ def get_info(name, session):
     """
     try:
         search_url = "https://m.weibo.cn/api/container/getIndex?containerid=100103type%3D3%26q%3D"
-        info_response = session.get(search_url + name + "&page_type=searchall")  # 微博搜索的页面url
+        if use_proxy:
+            info_response = session.get(search_url + name + "&page_type=searchall",proxies=proxies)  # 微博搜索的页面url
+        else:
+            info_response = session.get(search_url + name + "&page_type=searchall")  # 微博搜索的页面url
         data = json.loads(info_response.text)
         condition = []
         if data['data']['cards']:
@@ -177,7 +183,7 @@ def get_info(name, session):
                     id = int(re.findall(r"/u/(\d.+)\?", profile_url)[0])
                     subs_size = data['data']['cards'][1]['card_group'][k]['user']['follow_count']
                     fans_size = data['data']['cards'][1]['card_group'][k]['user']['followers_count']
-                    logger.info("----------------%s的订阅者数：%d   粉丝数%d" % (name, subs_size, fans_size))
+                    logger.info("%s的订阅者数：%d   粉丝数%d" % (name, subs_size, fans_size))
                     if fans_size > 20:
                         fans_page = int(round(fans_size / 20))  # 计算出粉丝列表的具体页数
                     elif fans_size != 0:
@@ -192,13 +198,13 @@ def get_info(name, session):
                         subs_page = 0
                     condition = [subs_page, fans_page, id]
         if not condition:
-            logger.info("----------------------将失效昵称写入文件中,失效昵称:%s" % name)
+            logger.info("将失效昵称写入文件中,失效昵称:%s" % name)
             with open('failure.txt', 'a') as f:
                 f.write(name + "\n")
         return condition
     except Exception as e:
         logger.error(e)
-        logger.info("------------发生异常", e)
+        logger.info("发生异常", e)
     finally:
         pass
 
@@ -220,10 +226,10 @@ def get_top_contents(weibo_id, name, session, page):
         # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
         while (weibo_div_size == 0):
             count = count + 1
-            logger.info("---------------请求连接到微博内容页面:%s" % cont_url)
+            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies[0],cont_url))
             response = openlink(cont_url, session)
             html = response.content.decode()  # 对调用接口后传过来的内容进行解码
-            logger.info("-----------------解析微博文本内容%d次" % count)
+            logger.info("解析微博文本内容%d次" % count)
             cont_etree = etree.HTML(html)
             cont_etree = analyse_html(cont_etree, "pl.content.homeFeed.index")
             weibo_div = cont_etree.xpath('//div[@class="WB_detail"]')  # 找到所有的div内容框，返回的是结果集
@@ -237,17 +243,17 @@ def get_top_contents(weibo_id, name, session, page):
                     f.write("[" + weibo_time + "    " + phone + "]")  # 写入时间和手机型号
                     f.write(text.strip("n") + "\n")  # 写入文本
             if count >= 3 and count <= 5:
-                logger.info("------------------连续解%d次失败，休眠10秒后再爬" % count)
+                logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                 time.sleep(10)
             # 这个是为了请求6页以后，微博限制用户访问列表，不再继续爬
             if count > 5:
-                logger.info("--------------------解析%s页面第%d页微博文本页面失败!!!!" % (name, page))
+                logger.info("解析%s页面第%d页微博文本页面失败!!!!" % (name, page))
                 break
-        logger.info("---------------休眠两秒后继续爬")
+        logger.info("休眠两秒后继续爬")
         time.sleep(2)
     except Exception as e:
         logger.error(e)
-        logger.info("----------发生异常", e)
+        logger.info("发生异常", e)
     finally:
         pass
 
@@ -278,11 +284,11 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
                  'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
                  '__rnd': get_timestamp()})  # 调用接口时所用的参数
             cont_url = api_url + "%s" % (params)
-            logger.info("---------------请求连接到微博内容页面:%s" % cont_url)
+            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies[0],cont_url))
             response = openlink(cont_url, session)
             html = response.content.decode()  # 对调用接口后传过来的内容进行解码
             cont_html = json.loads(html)['data']
-            logger.info("-----------------解析微博文本内容%d次" % count)
+            logger.info("解析微博文本内容%d次" % count)
             cont_etree = etree.HTML(cont_html)
             # 如钩没加载完则返回True,继续加载。如果加载完了返回False，不用接着加载了
             weibo_div = cont_etree.xpath('//div[@class="WB_detail"]')  # 找到所有的div内容框，返回的是结果集
@@ -291,7 +297,7 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
             page_div = cont_etree.xpath('//div[@class="W_pages"]')
             # 同时出现empty标签和微博内容div为空,或者出现页码条和没到最后一次滑动
             if (empty_flat and not weibo_div) or (page_div and (pagebar + 1) != 2):
-                logger.info("---------------第%d页第%d次滑动没有内容" % (page + 1, pagebar + 1))
+                logger.info("第%d页第%d次滑动没有内容" % (page + 1, pagebar + 1))
                 break
             for k in weibo_div:
                 text = k.xpath('./div[@class="WB_text W_f14"]/text()')[0]
@@ -302,17 +308,17 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
                     f.write("[" + weibo_time + "    " + phone + "]")  # 写入时间和手机型号
                     f.write(text.strip("n").strip(" ") + "\n")  # 写入文本
             if page + 1 != content_page and count >= 3 and count <= 5:
-                logger.info("------------------连续解析%d次失败，休眠15秒后再爬" % count)
+                logger.info("连续解析%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
             if page + 1 != content_page and count > 5:
-                logger.info("--------------------解析%s页面第%d页微博列表面失败!!!!" % (name, page + 1))
+                logger.info("解析%s页面第%d页微博列表面失败!!!!" % (name, page + 1))
                 break
             if page + 1 == content_page and count >= 3 and count <= 5:
-                logger.info("------------------连续解析最后一个页面%d次失败，休眠15秒后再爬" % count)
+                logger.info("连续解析最后一个页面%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
             if page + 1 == content_page and count > 5:
-                logger.info("------------------解析解析%s页面第最后一页微博列表面失败！！！" % (name))
-                logger.info("------------------这是最后一页")
+                logger.info("解析解析%s页面第最后一页微博列表面失败！！！" % (name))
+                logger.info("这是最后一页")
                 break
 
     except Exception as e:
@@ -337,9 +343,9 @@ def get_subs(weibo_id, name, session, subs_list_page):
         for page in range(0, subs_list_page):
             subs_url = "https://weibo.com/p/100505" + weibo_id + "/follow?page=" + str(
                 page + 1) + "#Pl_Official_HisRelation__59"  # 拼凑成订阅者列表的页面url
-            logger.info("----------------爬取%s的订阅者列表的网址:  %s\n" % (name, subs_url))
-            logger.info("----------------请求连接到%s的订阅者列表页面" % name)
-            logger.info("----------------正在爬取%s的订阅者第%d页" % (name, page + 1))
+            logger.info("使用代理%s爬取%s的订阅者列表的网址:  %s\n" % (proxies[0],name, subs_url))
+            logger.info("请求连接到%s的订阅者列表页面" % name)
+            logger.info("正在爬取%s的订阅者第%d页" % (name, page + 1))
             subs_size = 0
             count = 0
             # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
@@ -347,7 +353,7 @@ def get_subs(weibo_id, name, session, subs_list_page):
                 count = count + 1
                 subs_response = openlink(subs_url, session)
                 subs_html = subs_response.content.decode()
-                logger.info("-----------------解析%s的订阅者html页面%d次" % (name, count))
+                logger.info("解析%s的订阅者html页面%d次" % (name, count))
                 subs_etree = etree.HTML(subs_html)
                 subs_etree = analyse_html(subs_etree, "pl.content.followTab.index")
                 mkdir("./" + name)  # 创建目录(若不存在)
@@ -363,17 +369,17 @@ def get_subs(weibo_id, name, session, subs_list_page):
                             f.write("[" + "  " + "]")  # 订阅者的昵称
                             f.write(str(x.get('href')) + "\n")  # 订阅者连接
                 if count >= 3 and count <= 5:
-                    logger.info("------------------连续解%d次失败，休眠10秒后再爬" % count)
+                    logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                     time.sleep(10)
                 # 这个是为了请求6页以后，微博限制用户访问列表，不再继续爬
                 if count > 5:
-                    logger.info("--------------------解析%s页面第%d页订阅列表页面失败!!!!" % (name, page + 1))
+                    logger.info("解析%s页面第%d页订阅列表页面失败!!!!" % (name, page + 1))
                     break
-            logger.info("---------------休眠两秒后继续爬下一页")
+            logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
     except Exception as e:
         logger.error(e)
-        logger.info("------------发生异常", e)
+        logger.info("发生异常", e)
     finally:
         pass
 
@@ -393,9 +399,9 @@ def get_fans(weibo_id, name, session, fans_list_page):
         for page in range(0, fans_list_page):
             fans_url = "https://weibo.com/p/100505" + weibo_id + "/follow?relate=fans&page=" + str(
                 page + 1) + "#Pl_Official_HisRelation__59"  # 拼凑粉丝列表url
-            logger.info("--------------------爬取%s的粉丝列表的网址：  %s\n" % (name, fans_url))
-            logger.info("--------------------请求连接到%s的粉丝列表页面" % name)
-            logger.info("----------------正在爬取%s的粉丝列表第%d页" % (name, page + 1))
+            logger.info("爬取%s的粉丝列表的网址：  %s\n" % (name, fans_url))
+            logger.info("请求连接到%s的粉丝列表页面" % name)
+            logger.info("正在爬取%s的粉丝列表第%d页" % (name, page + 1))
             fans_size = 0
             count = 0
             # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
@@ -418,18 +424,18 @@ def get_fans(weibo_id, name, session, fans_list_page):
                             f.write("[" + "  " + "]")
                             f.write(str(x.get('href')) + "\n")
                 if count >= 3 and count <= 5:
-                    logger.info("------------------连续解%d次失败，休眠10秒后再爬" % count)
+                    logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                     time.sleep(10)
                 # 这个是为了请求6页以后，微博限制用户访问列表，不再继续爬
                 if count > 5:
-                    logger.info("--------------------解析%s页面第%d页粉丝列页面失败!!!!" % (name, page + 1))
+                    logger.info("解析%s页面第%d页粉丝列页面失败!!!!" % (name, page + 1))
                     break
-            logger.info("---------------休眠两秒后继续爬下一页")
+            logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
 
     except Exception as e:
         logger.error(e)
-        logger.info("------------发生异常", e)
+        logger.info("发生异常", e)
     finally:
         pass
 
@@ -452,7 +458,7 @@ def get_contents_page(weibo_id, name, session, pagebar, page):
         cont_page_etree = analyse_html(etree.HTML(html), "Pl_Core_T8CustomTriColumn__3")
         info = cont_page_etree.xpath('//strong[@class="W_f18"]')
         weibo_size = info[2].text
-        logger.info("----------------%s共有%s条微博" % (name, weibo_size))
+        logger.info("%s共有%s条微博" % (name, weibo_size))
         if int(weibo_size) == 0:
             return 0
         if int(weibo_size) < 40:
@@ -470,17 +476,17 @@ def get_contents_page(weibo_id, name, session, pagebar, page):
                      'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
                      '__rnd': get_timestamp()})  # 调用接口时所用的参数
                 cont_url = api_url + "%s" % (params)
-                logger.info("---------------请求连接到%s的微博内容页面:%s" % (name, cont_url))
+                logger.info("使用代理%s请求连接到%s的微博内容页面:%s" % (proxies[0],name, cont_url))
                 response = openlink(cont_url, session)
                 html = response.content.decode()  # 对调用接口后传过来的内容进行解码
                 cont_html = json.loads(html)['data']
-                logger.info("-----------------解析%s的微博文本内容%d次" % (name, count))
+                logger.info("解析%s的微博文本内容%d次" % (name, count))
                 cont_etree = etree.HTML(cont_html)
                 content_page = int(re.sub("\D", "", cont_etree.xpath('//a[@bpfilter="page"]/text()')[1]))
                 return content_page
     except Exception as e:
         logger.error(e)
-        logger.info("----------发生异常", e)
+        logger.info("发生异常", e)
 
 
 def crawl_main(name):
@@ -489,64 +495,59 @@ def crawl_main(name):
     :param name:微薄昵称
     :return:
     """
-    logger.info("--------------------爬取%s的订阅者数,粉丝数以及微博数" % name)
+    logger.info("使用代理%s爬取%s的订阅者数,粉丝数以及微博数" % (proxies[0],name))
     info = get_info(name, weibo.session)  # 获取个人信息
     if info:
         weibo_id = str(info[2])  # 微博id
-        logger.info("--------------------要爬取的账号的ID：" + weibo_id)
-        logger.info("--------------------爬取订阅列表,共有%d页" % (info[0]))
+        logger.info("要爬取的账号的ID：" + weibo_id)
+        logger.info("爬取订阅列表,共有%d页" % (info[0]))
         get_subs(weibo_id, name, weibo.session, info[0])
-        logger.info("-----------10秒后爬取粉丝列表")
+        logger.info("10秒后爬取粉丝列表")
         time.sleep(10)
-        logger.info("--------------------爬取粉丝列表,共有%d页" % (info[1]))
+        logger.info("爬取粉丝列表,共有%d页" % (info[1]))
         get_fans(weibo_id, name, weibo.session, info[1])
-        logger.info("-----------10秒后爬取文本列表")
+        logger.info("10秒后爬取文本列表")
         time.sleep(10)
         content_page = get_contents_page(weibo_id, name, weibo.session, 1, 1)
-        logger.info("--------------------爬取微博文本,共有%d页" % (content_page))
+        logger.info("爬取微博文本,共有%d页" % (content_page))
         for page in range(content_page):  # info[2]是微博列表的总页码
-            logger.info("-----------------正在爬取第%d页顶部内容" % (page + 1))
+            logger.info("正在爬取第%d页顶部内容" % (page + 1))
             get_top_contents(weibo_id, name, weibo.session, page + 1)  # 先加载出顶部微博内容
             time.sleep(3)
             for slide in range(0, 2):  # 两次下滑加载内容
-                logger.info("-----------------正在爬取第%d页内容------第%d次滑动加载更多" % (page + 1, slide + 1))
+                logger.info("正在爬取第%d页内容第%d次滑动加载更多" % (page + 1, slide + 1))
                 get_contents(weibo_id, name, weibo.session, slide, page, content_page)
-                logger.info("--------------------休眠3秒后继续爬下一次滑动")
+                logger.info("休眠3秒后继续爬下一次滑动")
                 time.sleep(3)
-            logger.info("--------------------休眠3秒后继续爬下一页")
+            logger.info("休眠3秒后继续爬下一页")
             time.sleep(3)
-        logger.info("-----------30秒后爬取下一个用户的信息")
+        logger.info("30秒后爬取下一个用户的信息")
         time.sleep(30)
 
 
-def get_ip_list(url, headers):
-    web_data = requests.get(url, headers=headers)
-    soup = BeautifulSoup(web_data.text, 'lxml')
-    ips = soup.find_all('tr')
-    proxies_list = []
-    dict = {}
-    for i in range(1, len(ips)):
-        ip_info = ips[i]
-        tds = ip_info.find_all('td')
-        dict[tds[5].text] = tds[1].text + ":" + tds[2].text
-        proxies_list.append(dict)
-        dict = {}
-    logging.info("添加代理IP地址")
-    return proxies_list
+def get_ip_list(url):
+    web_data = json.loads(requests.get(url).content.decode('utf-8'))
+    logging.info("获取代理IP地址")
+    ip_condition=True
+    ips=None
+    while ip_condition:
+        if web_data['msg'] == 'success':
+            ips=web_data['data']['detail'][0]['url']
+            ip_condition=detect_list(ips)
+    return [ips]
 
-
-def detect_list(proxy, avaiable_proxies):
-    r = requests.get("http://www.ip138.com/", proxies=proxy)
+def detect_list(proxy):
+    r = requests.get("http://www.ip138.com/", proxies=[proxy])
     if r.ok:
-        avaiable_proxies.append(proxy)
-    return avaiable_proxies
+        return False
+    return True
 
 
 # 主程序入口
 if __name__ == "__main__":
     """下面是定义各种属性的地方，有一些需要根据自己实际情况来定"""
     weibo_url = "http://weibo.com/"  # 微博域名
-    ips_url = "http://www.xicidaili.com/nn"
+    ips_url="http://localhost:12345/api/proxy/?count=1&scheme=HTTP&anonymity=anonymous"
     api_url = "http://weibo.com/p/aj/v6/mblog/mbloglist?"  # 微博文本抓取的apt
     excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
@@ -557,12 +558,8 @@ if __name__ == "__main__":
     weibo = login_simulation.WeiBoLogin()  # 微博模拟登录实例
     weibo.login(username, password)  # 进行微博模拟登录
     logging.info('微博模拟登录成功')
-    use_proxy = True
-    # proxies_list = get_ip_list(ips_url, headers)
-    # avaiable_proxies = []
-    # for x in proxies_list:
-    #     detect_list(x, avaiable_proxies)
-    # headers["Cookie"] = cookie  # 将cookie加入到头文件中
+    use_proxy = True # 使用代理模式
+    proxies = get_ip_list(ips_url) # 获取代理
     data = pd.read_excel(excel_name)  # 读取excel表格
     names_list = data['微博昵称']  # 获取昵称的列值
     pool = Pool()
