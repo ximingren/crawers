@@ -11,6 +11,7 @@ import pandas as pd
 import re
 import requests
 from lxml import etree
+from redis import StrictRedis
 from selenium import webdriver
 import time
 from bs4 import BeautifulSoup
@@ -32,11 +33,14 @@ import login_simulation
 # TODO(ximingren): 点赞的微博不要
 # TODO(ximingren): list index out of range;'NoneType' object is not callable
 # TODO(ximingren): 添加日志功能  OK!!
-# TODO(ximingren): 存储到数据库中
+# TODO(ximingren): 存储到数据库中 (目前只使用了redis数据库存储)
 # TODO(ximingren): 构建IP代理池 （暂时只是用了他人代建的代理池实现了代理爬取）
 # TODO(ximingren): 优化变量命名
 # TODO(ximingren): 模拟登陆而不用selenium获取cookie OK!!
 # TODO(ximingren): 实现模拟登录  OK!!
+# TODO(ximingren): 'NoneType' object has no attribute 'xpath'
+# TODO(ximingren): line 1: b'Attribute rnt redefined' (line 1)
+# TODO(ximingren): line 2450: b"htmlParseEntityRef: expecting ';'" (line 2450)
 
 def log_setting():
     """
@@ -197,6 +201,8 @@ def get_info(name, session):
                     else:
                         subs_page = 0
                     condition = [subs_page, fans_page, id]
+                    redis.hset(name,'subs_page',str(subs_page)) # 存入redis中，
+                    redis.hset(name,'fans_page',str(fans_page)) # 存入redis中，
         if not condition:
             logger.info("将失效昵称写入文件中,失效昵称:%s" % name)
             with open('failure.txt', 'a') as f:
@@ -238,10 +244,7 @@ def get_top_contents(weibo_id, name, session, page):
                 text = k.xpath('./div[@class="WB_text W_f14"]/text()')[0]
                 weibo_time = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/@title')[0]
                 phone = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/text()')[1]
-                mkdir("./" + name)
-                with open("./" + name + '/CONTENTS.txt', 'a', encoding='utf-8') as f:
-                    f.write("[" + weibo_time + "    " + phone + "]")  # 写入时间和手机型号
-                    f.write(text.strip("n") + "\n")  # 写入文本
+                redis.hset(name,"content_"+str(page)+"_top",str([weibo_time,phone,text.strip('n')]))
             if count >= 3 and count <= 5:
                 logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                 time.sleep(10)
@@ -303,10 +306,7 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
                 text = k.xpath('./div[@class="WB_text W_f14"]/text()')[0]
                 weibo_time = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/@title')[0]
                 phone = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/text()')[1]
-                mkdir("./" + name)
-                with open("./" + name + '/CONTENTS.txt', 'a', encoding='utf-8') as f:
-                    f.write("[" + weibo_time + "    " + phone + "]")  # 写入时间和手机型号
-                    f.write(text.strip("n").strip(" ") + "\n")  # 写入文本
+                redis.hset(name, "content_" + str(page) +"_pagebar_"+str(pagebar), str([weibo_time, phone, text.strip('n')]))
             if page + 1 != content_page and count >= 3 and count <= 5:
                 logger.info("连续解析%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
@@ -338,6 +338,7 @@ def get_subs(weibo_id, name, session, subs_list_page):
     :return:
     """
     try:
+        redis_subs_list=list()
         if subs_list_page > 5:
             subs_list_page = 5
         for page in range(0, subs_list_page):
@@ -356,18 +357,12 @@ def get_subs(weibo_id, name, session, subs_list_page):
                 logger.info("解析%s的订阅者html页面%d次" % (name, count))
                 subs_etree = etree.HTML(subs_html)
                 subs_etree = analyse_html(subs_etree, "pl.content.followTab.index")
-                mkdir("./" + name)  # 创建目录(若不存在)
-                # 写入文件
-                with open("./" + name + '/SUB.txt', 'a', encoding='utf-8') as f:
-                    subs_list = subs_etree.xpath('//a[@class="S_txt1" and @target="_blank"]')
-                    subs_size = len(subs_list)
-                    for x in subs_list:
-                        if x.text is not None:
-                            f.write("[" + str(x.text) + "]")  # 订阅者的昵称
-                            f.write(str(x.get('href')) + "\n")  # 订阅者连接
-                        else:
-                            f.write("[" + "  " + "]")  # 订阅者的昵称
-                            f.write(str(x.get('href')) + "\n")  # 订阅者连接
+                # 写入redis数据库中
+                subs_list = subs_etree.xpath('//a[@class="S_txt1" and @target="_blank"]')
+                subs_size = len(subs_list)
+                for x in subs_list:
+                    if x.text is not None:
+                        redis_subs_list.append(str(x.text)+str(x.get('href')))# 订阅者的昵称,订阅者连接
                 if count >= 3 and count <= 5:
                     logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                     time.sleep(10)
@@ -375,6 +370,7 @@ def get_subs(weibo_id, name, session, subs_list_page):
                 if count > 5:
                     logger.info("解析%s页面第%d页订阅列表页面失败!!!!" % (name, page + 1))
                     break
+            redis.hset(name,'subs_list',str(redis_subs_list))
             logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
     except Exception as e:
@@ -394,6 +390,7 @@ def get_fans(weibo_id, name, session, fans_list_page):
     :return:
     """
     try:
+        redis_fans_list=list()
         if fans_list_page > 5:
             fans_list_page = 5
         for page in range(0, fans_list_page):
@@ -412,17 +409,11 @@ def get_fans(weibo_id, name, session, fans_list_page):
                 logger.info("v解析%s的粉丝列表html页面%d次" % (name, count))
                 fans_etree = etree.HTML(fans_html)
                 fans_etree = analyse_html(fans_etree, "pl.content.followTab.index")  # 获取处理过的html
-                mkdir("./" + name)
-                with open("./" + name + '/FANS.txt', 'a', encoding='utf-8') as f:
-                    fan_list = fans_etree.xpath('//a[@class="S_txt1"  and @target="_blank"]')
-                    fans_size = len(fan_list)
-                    for x in fan_list:
-                        if x.text is not None:
-                            f.write("[" + x.text + "]")
-                            f.write(str(x.get('href')) + "\n")
-                        else:
-                            f.write("[" + "  " + "]")
-                            f.write(str(x.get('href')) + "\n")
+                fan_list = fans_etree.xpath('//a[@class="S_txt1"  and @target="_blank"]')
+                fans_size = len(fan_list)
+                for x in fan_list:
+                    if x.text is not None:
+                        redis_fans_list.append(str(x.text) + str(x.get('href')))  # 粉丝的昵称,粉丝连接
                 if count >= 3 and count <= 5:
                     logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                     time.sleep(10)
@@ -430,6 +421,7 @@ def get_fans(weibo_id, name, session, fans_list_page):
                 if count > 5:
                     logger.info("解析%s页面第%d页粉丝列页面失败!!!!" % (name, page + 1))
                     break
+            redis.hset(name,'fans_list',str(redis_fans_list))
             logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
 
@@ -451,7 +443,6 @@ def get_contents_page(weibo_id, name, session, pagebar, page):
     :return:
     """
     try:
-        # headers['Referer'] = "https://weibo.com/p/100505" + weibo_id
         url = "https://weibo.com/p/100505" + weibo_id + "/home?profile_ftype=1&is_all=1#_0"
         response = openlink(url, session)
         html = response.content.decode()
@@ -509,6 +500,7 @@ def crawl_main(name):
         logger.info("10秒后爬取文本列表")
         time.sleep(10)
         content_page = get_contents_page(weibo_id, name, weibo.session, 1, 1)
+        redis.hset(name,'content_page',content_page)
         logger.info("爬取微博文本,共有%d页" % (content_page))
         for page in range(content_page):  # info[2]是微博列表的总页码
             logger.info("正在爬取第%d页顶部内容" % (page + 1))
@@ -551,6 +543,7 @@ if __name__ == "__main__":
     api_url = "http://weibo.com/p/aj/v6/mblog/mbloglist?"  # 微博文本抓取的apt
     excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
+    redis=StrictRedis(host='localhost',port=6379)
     log_setting()
     username = input('输入帐号')
     password = input('输入密码')
