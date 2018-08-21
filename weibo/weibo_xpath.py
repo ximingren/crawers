@@ -3,7 +3,6 @@
 import logging
 import socket
 import urllib.parse
-from lxml import etree
 from multiprocessing.pool import Pool
 from urllib import request
 from urllib.request import urlopen, Request
@@ -11,13 +10,13 @@ import http.cookiejar
 import pandas as pd
 import re
 import requests
+from lxml import etree
 from selenium import webdriver
 import time
 from bs4 import BeautifulSoup
 import os
 from numpy import long
 import json
-
 """
     # 使用说明：基于python3.5
     # 执行参数分别为登陆帐号，登陆密码，是否用游览器引擎获取cookie（是的时候确保电脑有游览器引擎,并配置好相关信息）
@@ -25,6 +24,7 @@ import json
     # 在解析html的时候，获取订阅者和粉丝是用lxml解析的，获取微博文本是用beautifulsoup解析的.
     !!!由于微博的限制，现在爬虫只能爬前5页的粉丝列表以及订阅列表，除非用其它方法!!!
 """
+
 
 # TODO(ximingren): 解决只能访问粉丝和订阅者列表前5页的问题
 # TODO(ximingren):  点赞的微博不要
@@ -34,6 +34,7 @@ import json
 # TODO(ximingren):  构建IP代理池
 # TODO(ximingren): 优化变量命名
 # TODO(ximingren): 模拟登陆而不用selenium获取cookie
+# TODO(ximingren): 实现模拟登录
 
 def log_setting():
     """
@@ -41,13 +42,13 @@ def log_setting():
     :return: 
     """
     global logger
-    logger=logging.getLogger('weibo_logger')
+    logger = logging.getLogger('weibo_logger')
     logger.setLevel(logging.DEBUG)
-    fh=logging.FileHandler('weibo_logger.log')
+    fh = logging.FileHandler('weibo_logger.log')
     fh.setLevel(logging.DEBUG)
-    ch=logging.StreamHandler()
+    ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
-    formatter=logging.Formatter('%(asctime)s - %(module)s.%(funcName)s.%(lineno)d - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(module)s.%(funcName)s.%(lineno)d - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
     logger.addHandler(fh)
@@ -85,7 +86,7 @@ def get_timestamp():
         return timestamp
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -111,7 +112,7 @@ def direct_get_cookies(cookie_save_file):
             return False
     except Exception as  e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -127,7 +128,7 @@ def save_cookie(cookie):
             f.write(cookie)
     except Exception as  e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -159,7 +160,7 @@ def save_cookie_update_timestamp(timestamp):
             f.write('\n')
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -177,7 +178,7 @@ def get_cookie_update_time_from_txt():
             return cookie_update_time
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -194,7 +195,7 @@ def mkdir(path):
             os.makedirs(path)
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -224,7 +225,7 @@ def is_valid_cookie():
                         return True
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -259,8 +260,7 @@ def login(username, password, driver_path):
             cookie = get_cookie_from_txt()  # 如果没有失效,则从文本中读取cookie
         return cookie
     except Exception:
-       logger.exception("Exception")
-
+        logger.exception("Exception")
 
 
 def login_weibo_get_cookies(driver):
@@ -283,7 +283,6 @@ def login_weibo_get_cookies(driver):
         return cookie
     except Exception as e:
         logger.error(e)
-
 
 
 def analyse_html(tree, name):
@@ -309,7 +308,6 @@ def analyse_html(tree, name):
         return result_etree
     except Exception as e:
         logger.error(e)
-        
 
 
 def get_info(name, headers):
@@ -409,7 +407,7 @@ def get_top_contents(weibo_id, name, headers, page):
         pass
 
 
-def  get_contents(weibo_id, name, headers, pagebar, page,content_page):
+def get_contents(weibo_id, name, headers, pagebar, page, content_page):
     """
     通过微博ID和cookie来调取接口
     :param weibo_id: 用户ID
@@ -436,19 +434,19 @@ def  get_contents(weibo_id, name, headers, pagebar, page,content_page):
                  '__rnd': get_timestamp()})  # 调用接口时所用的参数
             cont_url = api_url + "%s" % (params)
             logger.info("---------------请求连接到微博内容页面:%s" % cont_url)
-            response=openlink(cont_url,headers)
+            response = openlink(cont_url, headers)
             html = response.read().decode()  # 对调用接口后传过来的内容进行解码
             cont_html = json.loads(html)['data']
             logger.info("-----------------解析微博文本内容%d次" % count)
-            cont_etree=etree.HTML(cont_html)
+            cont_etree = etree.HTML(cont_html)
             # 如钩没加载完则返回True,继续加载。如果加载完了返回False，不用接着加载了
             weibo_div = cont_etree.xpath('//div[@class="WB_detail"]')  # 找到所有的div内容框，返回的是结果集
             weibo_div_size = len(weibo_div)
             empty_flat = cont_etree.xpath('//div[@class="WB_empty WB_empty_narrow"]')  # 加载完没内容了，会出现页码
-            page_div=cont_etree.xpath('//div[@class="W_pages"]')
+            page_div = cont_etree.xpath('//div[@class="W_pages"]')
             # 同时出现empty标签和微博内容div为空,或者出现页码条和没到最后一次滑动
-            if (empty_flat and not weibo_div )or (page_div and (pagebar+1)!=2):
-                logger.info("---------------第%d页第%d次滑动没有内容"%(page+1,pagebar+1))
+            if (empty_flat and not weibo_div) or (page_div and (pagebar + 1) != 2):
+                logger.info("---------------第%d页第%d次滑动没有内容" % (page + 1, pagebar + 1))
                 break
             for k in weibo_div:
                 text = k.xpath('./div[@class="WB_text W_f14"]/text()')[0]
@@ -459,13 +457,13 @@ def  get_contents(weibo_id, name, headers, pagebar, page,content_page):
                     f.write("[" + weibo_time + "    " + phone + "]")  # 写入时间和手机型号
                     f.write(text.strip("n").strip(" ") + "\n")  # 写入文本
             if page + 1 != content_page and count >= 3 and count <= 5:
-                logger.info("------------------连续解析%d次失败，休眠15秒后再爬"%count)
+                logger.info("------------------连续解析%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
             if page + 1 != content_page and count > 5:
                 logger.info("--------------------解析%s页面第%d页微博列表面失败!!!!" % (name, page + 1))
                 break
             if page + 1 == content_page and count >= 3 and count <= 5:
-                logger.info("------------------连续解析最后一个页面%d次失败，休眠15秒后再爬"%count)
+                logger.info("------------------连续解析最后一个页面%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
             if page + 1 == content_page and count > 5:
                 logger.info("------------------解析解析%s页面第最后一页微博列表面失败！！！" % (name))
@@ -474,7 +472,7 @@ def  get_contents(weibo_id, name, headers, pagebar, page,content_page):
 
     except Exception as e:
         logger.error(e)
-        
+
     finally:
         pass
 
@@ -494,9 +492,9 @@ def get_subs(weibo_id, name, headers, subs_list_page):
         for page in range(0, subs_list_page):
             subs_url = "https://weibo.com/p/100505" + weibo_id + "/follow?page=" + str(
                 page + 1) + "#Pl_Official_HisRelation__59"  # 拼凑成订阅者列表的页面url
-            logger.info("----------------爬取%s的订阅者列表的网址:  %s\n" %(name,subs_url))
-            logger.info("----------------请求连接到%s的订阅者列表页面"%name)
-            logger.info("----------------正在爬取%s的订阅者第%d页" % (name,page + 1))
+            logger.info("----------------爬取%s的订阅者列表的网址:  %s\n" % (name, subs_url))
+            logger.info("----------------请求连接到%s的订阅者列表页面" % name)
+            logger.info("----------------正在爬取%s的订阅者第%d页" % (name, page + 1))
             subs_size = 0
             count = 0
             # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
@@ -504,8 +502,8 @@ def get_subs(weibo_id, name, headers, subs_list_page):
                 count = count + 1
                 subs_response = openlink(subs_url, headers)
                 subs_html = subs_response.read().decode()
-                logger.info("-----------------解析%s的订阅者html页面%d次" % (name,count))
-                subs_etree=etree.HTML(subs_html)
+                logger.info("-----------------解析%s的订阅者html页面%d次" % (name, count))
+                subs_etree = etree.HTML(subs_html)
                 subs_etree = analyse_html(subs_etree, "pl.content.followTab.index")
                 mkdir("./" + name)  # 创建目录(若不存在)
                 # 写入文件
@@ -550,9 +548,9 @@ def get_fans(weibo_id, name, headers, fans_list_page):
         for page in range(0, fans_list_page):
             fans_url = "https://weibo.com/p/100505" + weibo_id + "/follow?relate=fans&page=" + str(
                 page + 1) + "#Pl_Official_HisRelation__59"  # 拼凑粉丝列表url
-            logger.info("--------------------爬取%s的粉丝列表的网址：  %s\n" %(name, fans_url))
-            logger.info("--------------------请求连接到%s的粉丝列表页面"%name)
-            logger.info("----------------正在爬取%s的粉丝列表第%d页" % (name,page + 1))
+            logger.info("--------------------爬取%s的粉丝列表的网址：  %s\n" % (name, fans_url))
+            logger.info("--------------------请求连接到%s的粉丝列表页面" % name)
+            logger.info("----------------正在爬取%s的粉丝列表第%d页" % (name, page + 1))
             fans_size = 0
             count = 0
             # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
@@ -560,8 +558,8 @@ def get_fans(weibo_id, name, headers, fans_list_page):
                 count = count + 1
                 fans_response = openlink(fans_url, headers)
                 fans_html = fans_response.read().decode()
-                logger.info("v解析%s的粉丝列表html页面%d次" % (name,count))
-                fans_etree=etree.HTML(fans_html)
+                logger.info("v解析%s的粉丝列表html页面%d次" % (name, count))
+                fans_etree = etree.HTML(fans_html)
                 fans_etree = analyse_html(fans_etree, "pl.content.followTab.index")  # 获取处理过的html
                 mkdir("./" + name)
                 with open("./" + name + '/FANS.txt', 'a', encoding='utf-8') as f:
@@ -605,14 +603,14 @@ def get_contents_page(weibo_id, name, headers, pagebar, page):
         headers['Referer'] = "https://weibo.com/p/100505" + weibo_id
         url = "https://weibo.com/p/100505" + weibo_id + "/home?profile_ftype=1&is_all=1#_0"
         response = openlink(url, headers)
-        html=response.read().decode()
-        cont_page_etree=analyse_html(etree.HTML(html),"Pl_Core_T8CustomTriColumn__3")
-        info=cont_page_etree.xpath('//strong[@class="W_f18"]')
-        weibo_size=info[2].text
-        logger.info("----------------%s共有%s条微博"%(name,weibo_size))
-        if int(weibo_size)==0:
+        html = response.read().decode()
+        cont_page_etree = analyse_html(etree.HTML(html), "Pl_Core_T8CustomTriColumn__3")
+        info = cont_page_etree.xpath('//strong[@class="W_f18"]')
+        weibo_size = info[2].text
+        logger.info("----------------%s共有%s条微博" % (name, weibo_size))
+        if int(weibo_size) == 0:
             return 0
-        if int(weibo_size)<40:
+        if int(weibo_size) < 40:
             return 1
         else:
             weibo_div_size = 0
@@ -627,17 +625,17 @@ def get_contents_page(weibo_id, name, headers, pagebar, page):
                      'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
                      '__rnd': get_timestamp()})  # 调用接口时所用的参数
                 cont_url = api_url + "%s" % (params)
-                logger.info("---------------请求连接到%s的微博内容页面:%s" % (name,cont_url))
-                response=openlink(cont_url,headers)
+                logger.info("---------------请求连接到%s的微博内容页面:%s" % (name, cont_url))
+                response = openlink(cont_url, headers)
                 html = response.read().decode()  # 对调用接口后传过来的内容进行解码
                 cont_html = json.loads(html)['data']
-                logger.info("-----------------解析%s的微博文本内容%d次" % (name,count))
-                cont_etree=etree.HTML(cont_html)
-                content_page=int(re.sub("\D", "", cont_etree.xpath('//a[@bpfilter="page"]/text()')[1]))
+                logger.info("-----------------解析%s的微博文本内容%d次" % (name, count))
+                cont_etree = etree.HTML(cont_html)
+                content_page = int(re.sub("\D", "", cont_etree.xpath('//a[@bpfilter="page"]/text()')[1]))
                 return content_page
     except Exception as e:
         logger.error(e)
-        logger.info("----------发生异常",e)
+        logger.info("----------发生异常", e)
 
 
 def crawl_main(name):
@@ -676,10 +674,34 @@ def crawl_main(name):
         time.sleep(30)
 
 
+def get_ip_list(url, headers):
+    web_data = requests.get(url, headers=headers)
+    soup = BeautifulSoup(web_data.text, 'lxml')
+    ips = soup.find_all('tr')
+    proxies_list = []
+    dict = {}
+    for i in range(1, len(ips)):
+        ip_info = ips[i]
+        tds = ip_info.find_all('td')
+        dict[tds[5].text] = tds[1].text + ":" + tds[2].text
+        proxies_list.append(dict)
+        dict = {}
+    logging.info("添加代理IP地址")
+    return proxies_list
+
+
+def detect_list(proxy, avaiable_proxies):
+    r = requests.get("http://www.ip138.com/", proxies=proxy)
+    if r.ok:
+        avaiable_proxies.append(proxy)
+    return avaiable_proxies
+
+
 # 主程序入口
 if __name__ == "__main__":
     """下面是定义各种属性的地方，有一些需要根据自己实际情况来定"""
     weibo_url = "http://weibo.com/"  # 微博域名
+    ips_url = "http://www.xicidaili.com/nn"
     api_url = "http://weibo.com/p/aj/v6/mblog/mbloglist?"  # 微博文本抓取的apt
     excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
@@ -703,17 +725,20 @@ if __name__ == "__main__":
     username = ""
     password = ""
     auto_getCookie = True  # 1代表用游览器获取cookie,非1代表需要自己手动获取cookie并存入文件
-    if auto_getCookie :
+    use_proxy = True
+    if auto_getCookie:
         driver_path = input("请输入游览器引擎的路径")
         cookie = login(username, password, driver_path)  # 实地登陆
     else:
         cookie_save_file = input("请输入你的cookie文件名")  # 定义cookie储存的文件名，但是不能为空
         cookie = direct_get_cookies(cookie_save_file)  # 直接读取文件以获得cookie,如果文件不存在，则返回False
     if cookie != False:  # 文件存在，cookie是有值的就执行下面的
+        proxies_list = get_ip_list(ips_url, headers)
+        avaiable_proxies = []
+        for x in proxies_list:
+            detect_list(x, avaiable_proxies)
         headers["Cookie"] = cookie  # 将cookie加入到头文件中
         data = pd.read_excel(excel_name)  # 读取excel表格
         names_list = data['微博昵称']  # 获取昵称的列值
         pool = Pool()
         pool.map(crawl_main, names_list)
-
-

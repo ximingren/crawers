@@ -9,6 +9,8 @@ from urllib.request import urlopen, Request
 import http.cookiejar
 import pandas as pd
 import re
+
+import pymysql
 import requests
 from lxml import etree
 from redis import StrictRedis
@@ -60,6 +62,18 @@ def log_setting():
     logger.addHandler(fh)
     logger.addHandler(ch)
 
+# def insert_data(db,table,data):
+#     cursor=db.cursor()
+#     keys=','.join(data.keys())
+#     values=','.join(['%s']*len(data))
+#     sql='INSERT INTO {table}({keys}) VALUES ({values})'.format(table=table,keys=keys,values=values)
+#     try:
+#         if cursor.execute(sql,tuple(data.values())):
+#             print('Successful')
+#             db.commit()
+#     except:
+#         print('Failed')
+#         db.rollback()
 
 def openlink(url, session):
     """
@@ -203,6 +217,9 @@ def get_info(name, session):
                     condition = [subs_page, fans_page, id]
                     redis.hset(name,'subs_page',str(subs_page)) # 存入redis中，
                     redis.hset(name,'fans_page',str(fans_page)) # 存入redis中，
+                    # insert_data(mysql_db,mysql_table,{'id':id,
+                    #                                   'subs_page':str(subs_page),
+                    #                                   'fans_page':str(fans_page)})
         if not condition:
             logger.info("将失效昵称写入文件中,失效昵称:%s" % name)
             with open('failure.txt', 'a') as f:
@@ -245,6 +262,8 @@ def get_top_contents(weibo_id, name, session, page):
                 weibo_time = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/@title')[0]
                 phone = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/text()')[1]
                 redis.hset(name,"content_"+str(page)+"_top",str([weibo_time,phone,text.strip('n')]))
+                # insert_data(mysql_db,mysql_table,{'id':weibo_id,
+                #                                   "contents"+str(page)+"_top":str([weibo_time,phone,text.strip('n')])})
             if count >= 3 and count <= 5:
                 logger.info("连续解%d次失败，休眠10秒后再爬" % count)
                 time.sleep(10)
@@ -307,6 +326,9 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
                 weibo_time = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/@title')[0]
                 phone = k.xpath('.//a[@class="S_txt2" and @target="_blank"]/text()')[1]
                 redis.hset(name, "content_" + str(page) +"_pagebar_"+str(pagebar), str([weibo_time, phone, text.strip('n')]))
+                # insert_data(mysql_db, mysql_table, {'id': weibo_id,
+                #                                     "content_" + str(page)+"_pagebar_"+str(pagebar): str(
+                #                                         [weibo_time, phone, text.strip('n')])})
             if page + 1 != content_page and count >= 3 and count <= 5:
                 logger.info("连续解析%d次失败，休眠15秒后再爬" % count)
                 time.sleep(15)
@@ -371,6 +393,8 @@ def get_subs(weibo_id, name, session, subs_list_page):
                     logger.info("解析%s页面第%d页订阅列表页面失败!!!!" % (name, page + 1))
                     break
             redis.hset(name,'subs_list',str(redis_subs_list))
+            # insert_data(mysql_db,mysql_table,{'id':weibo_id,
+            #                                   'subs_list':str(redis_subs_list)})
             logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
     except Exception as e:
@@ -422,6 +446,8 @@ def get_fans(weibo_id, name, session, fans_list_page):
                     logger.info("解析%s页面第%d页粉丝列页面失败!!!!" % (name, page + 1))
                     break
             redis.hset(name,'fans_list',str(redis_fans_list))
+            # insert_data(mysql_db,mysql_table,{'id':weibo_id,
+            #                                   'fans_list':str(redis_fans_list)})
             logger.info("休眠两秒后继续爬下一页")
             time.sleep(2)
 
@@ -500,7 +526,8 @@ def crawl_main(name):
         logger.info("10秒后爬取文本列表")
         time.sleep(10)
         content_page = get_contents_page(weibo_id, name, weibo.session, 1, 1)
-        redis.hset(name,'content_page',content_page)
+        redis.hset(name,'content_page',content_page) #向redis插入数据
+        # insert_data(mysql_db,mysql_table,{'content_page':content_page}) # 向mysql插入数据
         logger.info("爬取微博文本,共有%d页" % (content_page))
         for page in range(content_page):  # info[2]是微博列表的总页码
             logger.info("正在爬取第%d页顶部内容" % (page + 1))
@@ -515,6 +542,7 @@ def crawl_main(name):
             time.sleep(3)
         logger.info("30秒后爬取下一个用户的信息")
         time.sleep(30)
+    mysql_db.close()
 
 
 def get_ip_list(url):
@@ -544,6 +572,8 @@ if __name__ == "__main__":
     excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
     redis=StrictRedis(host='localhost',port=6379)
+    mysql_db=pymysql.connect(db="spiders")
+    mysql_table="weibo_sfc"
     log_setting()
     username = input('输入帐号')
     password = input('输入密码')
