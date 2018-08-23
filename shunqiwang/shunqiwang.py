@@ -14,6 +14,10 @@ from requests.exceptions import ProxyError
 # TODO(ximingren) 代理地址速度很慢,改善代理地址
 # TODO(ximingren) 怎么把warning去掉
 # TODO(ximingren) 要爬取的数据不用文件读取，而是直接读取
+# TODO(ximingren) 'utf-8' codec can't decode byte 0xed in position 1567: invalid continuation byte
+# TODO(ximingren) ('Connection broken: IncompleteRead(0 bytes read)', IncompleteRead(0 bytes read))
+# TODO(ximingren)Invalid URL '': No schema supplied. Perhaps you meant http://?
+
 i=0
 def insert_info(mysql_db, mysql_table, data):
     """
@@ -81,7 +85,7 @@ def change_proxy():
     while get_proxy_condition:
         try:
             proxies = get_proxy()
-            r = requests.get(url="http://www.ip111.cn/", proxies=proxies, timeout=20)
+            r = requests.get(url="http://www.ip111.cn/", proxies=proxies, timeout=15)
             if r.ok:
                 status = etree.HTML(r.content.decode('utf8')).xpath(
                     '//table[@class= "table table-bordered"]//tr[position()=2]//text()')
@@ -237,6 +241,11 @@ def get_business_info(content, style,link):
                 data['business_model'] = business_model
             if '成立时间' in e:
                 established_time = info[info.index(e) + 1]
+                if '-' not in established_time:
+                    year = established_time[:4]
+                    month = established_time[5:7]
+                    day = established_time[8:10]
+                    established_time = year + '-' + month + '-' + day
                 data['established_time'] = established_time
             if '职员人数' in e:
                 person_number = info[info.index(e) + 1][:-1]
@@ -296,9 +305,10 @@ if __name__ == '__main__':
     need_links = []
     for x in range(len(links)):
         need_links.append(links[x].replace("\'", "").replace("//", ""))
-    need_links = need_links[:20]  # 获取要爬取的链接
+    # need_links = need_links[]  # 获取要爬取的链接
     mysql_db = pymysql.connect(user='ximingren', password='923162', db='spiders',
                                unix_socket="/var/run/mysqld/mysqld.sock")  # 创建数据库连接
+    need_links=need_links[581:]
     pool = Pool()
     pool.map(craw_main, need_links)  # 用进程池的形式实现多进程
     mysql_db.close() # 关闭数据库连接

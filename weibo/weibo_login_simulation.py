@@ -4,21 +4,13 @@ import logging
 import socket
 import urllib.parse
 from multiprocessing.pool import Pool
-from urllib import request
-from urllib.request import urlopen, Request
-import http.cookiejar
 import pandas as pd
 import re
-
-import pymysql
 import requests
 from lxml import etree
 from redis import StrictRedis
-from selenium import webdriver
 import time
-from bs4 import BeautifulSoup
 import os
-from numpy import long
 import json
 import login_simulation
 
@@ -82,6 +74,7 @@ def openlink(url, session):
     :param headers: 报文头部信息
     :return: 服务器响应
     """
+    global proxies
     maxTryNum = 15
     for tries in range(maxTryNum):
         try:
@@ -92,6 +85,7 @@ def openlink(url, session):
             return response
         except:
             if tries < (maxTryNum - 1):
+                proxies=get_ip_list(ips_url)
                 continue
             else:
                 logger.info("尝试%d 次连接网址%s失败!" % (maxTryNum, url))
@@ -187,10 +181,7 @@ def get_info(name, session):
     """
     try:
         search_url = "https://m.weibo.cn/api/container/getIndex?containerid=100103type%3D3%26q%3D"
-        if use_proxy:
-            info_response = session.get(search_url + name + "&page_type=searchall",proxies=proxies)  # 微博搜索的页面url
-        else:
-            info_response = session.get(search_url + name + "&page_type=searchall")  # 微博搜索的页面url
+        info_response = openlink(search_url + name + "&page_type=searchall",session)  # 微博搜索的页面url
         data = json.loads(info_response.text)
         condition = []
         if data['data']['cards']:
@@ -249,7 +240,7 @@ def get_top_contents(weibo_id, name, session, page):
         # 因为有时会出现连接失败，返回的页面是空的，所以反复请求连接直到有页面为止
         while (weibo_div_size == 0):
             count = count + 1
-            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies[0],cont_url))
+            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies,cont_url))
             response = openlink(cont_url, session)
             html = response.content.decode()  # 对调用接口后传过来的内容进行解码
             logger.info("解析微博文本内容%d次" % count)
@@ -306,7 +297,7 @@ def get_contents(weibo_id, name, session, pagebar, page, content_page):
                  'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
                  '__rnd': get_timestamp()})  # 调用接口时所用的参数
             cont_url = api_url + "%s" % (params)
-            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies[0],cont_url))
+            logger.info("使用代理%s请求连接到微博内容页面:%s" % (proxies,cont_url))
             response = openlink(cont_url, session)
             html = response.content.decode()  # 对调用接口后传过来的内容进行解码
             cont_html = json.loads(html)['data']
@@ -366,7 +357,7 @@ def get_subs(weibo_id, name, session, subs_list_page):
         for page in range(0, subs_list_page):
             subs_url = "https://weibo.com/p/100505" + weibo_id + "/follow?page=" + str(
                 page + 1) + "#Pl_Official_HisRelation__59"  # 拼凑成订阅者列表的页面url
-            logger.info("使用代理%s爬取%s的订阅者列表的网址:  %s\n" % (proxies[0],name, subs_url))
+            logger.info("使用代理%s爬取%s的订阅者列表的网址:  %s\n" % (proxies,name, subs_url))
             logger.info("请求连接到%s的订阅者列表页面" % name)
             logger.info("正在爬取%s的订阅者第%d页" % (name, page + 1))
             subs_size = 0
@@ -493,7 +484,7 @@ def get_contents_page(weibo_id, name, session, pagebar, page):
                      'feed_type': 0, 'page': page + 1, 'pre_page': page + 1, 'domain_op': 100505,
                      '__rnd': get_timestamp()})  # 调用接口时所用的参数
                 cont_url = api_url + "%s" % (params)
-                logger.info("使用代理%s请求连接到%s的微博内容页面:%s" % (proxies[0],name, cont_url))
+                logger.info("使用代理%s请求连接到%s的微博内容页面:%s" % (proxies,name, cont_url))
                 response = openlink(cont_url, session)
                 html = response.content.decode()  # 对调用接口后传过来的内容进行解码
                 cont_html = json.loads(html)['data']
@@ -512,7 +503,9 @@ def crawl_main(name):
     :param name:微薄昵称
     :return:
     """
-    logger.info("使用代理%s爬取%s的订阅者数,粉丝数以及微博数" % (proxies[0],name))
+    global proxies
+    proxies = get_ip_list(ips_url)  # 获取代理
+    logger.info("使用代理%s爬取%s的订阅者数,粉丝数以及微博数" % (proxies,name))
     info = get_info(name, weibo.session)  # 获取个人信息
     if info:
         weibo_id = str(info[2])  # 微博id
@@ -542,26 +535,34 @@ def crawl_main(name):
             time.sleep(3)
         logger.info("30秒后爬取下一个用户的信息")
         time.sleep(30)
-    mysql_db.close()
+    # mysql_db.close()
 
 
 def get_ip_list(url):
     web_data = json.loads(requests.get(url).content.decode('utf-8'))
-    logging.info("获取代理IP地址")
+    logging.info("进程%d获取代理IP地址"%os.getpid())
     ip_condition=True
-    ips=None
-    while ip_condition:
-        if web_data['msg'] == 'success':
-            ips=web_data['data']['detail'][0]['url']
-            ip_condition=detect_list(ips)
-    return [ips]
+    proxies=dict()
+    try:
+        while ip_condition:
+            if web_data['msg'] == 'success':
+                url=web_data['data']['detail'][0]['url']
+                proxies['http'] =url
+                ip_condition=detect_list(proxies)
+        return proxies
+    except Exception as e:
+        print("获取代理失败",e)
 
-def detect_list(proxy):
-    r = requests.get("http://www.ip138.com/", proxies=[proxy])
-    if r.ok:
-        return False
-    return True
-
+def detect_list(proxies):
+    try:
+        logging.info("进程%d对代理%s进行检测"%(os.getpid(),str(proxies)))
+        r = requests.get("http://www.ip138.com/", proxies=proxies)
+        if r.ok:
+            logging.info("进程%d代理%s检测成功"%(os.getpid(),str(proxies)))
+            return False
+        return True
+    except Exception as e:
+        logging.error("进程%d代理检测失败"%(os.getpid()),e)
 
 # 主程序入口
 if __name__ == "__main__":
@@ -569,11 +570,11 @@ if __name__ == "__main__":
     weibo_url = "http://weibo.com/"  # 微博域名
     ips_url="http://localhost:12345/api/proxy/?count=1&scheme=HTTP&anonymity=anonymous"
     api_url = "http://weibo.com/p/aj/v6/mblog/mbloglist?"  # 微博文本抓取的apt
-    excel_name = '19520816_0_个人性格调查问卷_101_101.xls'
+    excel_name = './weibo/19520816_0_个人性格调查问卷_101_101.xls'
     socket.setdefaulttimeout(25)  # 定义超时时间,25秒
     redis=StrictRedis(host='localhost',port=6379)
-    mysql_db=pymysql.connect(db="spiders")
-    mysql_table="weibo_sfc"
+    # mysql_db=pymysql.connect(db="spiders")
+    # mysql_table="weibo_sfc"
     log_setting()
     username = input('输入帐号')
     password = input('输入密码')
@@ -582,7 +583,6 @@ if __name__ == "__main__":
     weibo.login(username, password)  # 进行微博模拟登录
     logging.info('微博模拟登录成功')
     use_proxy = True # 使用代理模式
-    proxies = get_ip_list(ips_url) # 获取代理
     data = pd.read_excel(excel_name)  # 读取excel表格
     names_list = data['微博昵称']  # 获取昵称的列值
     pool = Pool()
