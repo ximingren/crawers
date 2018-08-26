@@ -22,6 +22,7 @@ from requests.exceptions import ProxyError
 # TODO(ximingren)Invalid URL '': No schema supplied. Perhaps you meant http://?
 # b''
 # list index out of range
+# nvalid URL 'None': No schema supplied. Perhaps you meant http://None?
 def insert_info(mysql_db, mysql_table, data):
     """
     插入数据
@@ -47,11 +48,13 @@ def get_one_link(mysql_table, id, cursor):
         sql = 'SELECT company_url FROM {table} WHERE city ="{city}" and id={id}'. \
             format(table=mysql_table, city='guangzhou', id=id)
         cursor.execute(sql)
+        mysql_db.autocommit(True)
         row = cursor.fetchone()[0]
-        return row
+        if row:
+            return row
     except Exception as e:
-        print("获取链接时发生异常", e)
-
+        print("获取id为%s的链接时发生异常"%(id), e)
+        return False
 
 def del_rn(need_del_list):
     """
@@ -121,10 +124,11 @@ def craw_text(url):
     :param url: 爬取的url
     :return:
     """
-    while True:
+    num=0
+    while num<20:
         try:
             # proxies = change_proxy()  # 获取代理地址
-            print("进程%s爬取页面为 %s" % (os.getpid(),url))
+            num+=1
             re = requests.get(url, headers=headers, proxies={'http': 'http://127.0.0.1:8082'})  # 使用代理爬取
             re.encoding = chardet.detect(re.content)['encoding']  # 设置编码
             print("进程%s是否访问页面成功  %s" % (os.getpid(),str(re.ok)))
@@ -242,16 +246,20 @@ def craw_main(share_dict,rowcount):
     """
     try:
         for x in range(rowcount):
+            lock.acquire()
             link = get_one_link('shunqiwang', share_dict['common_id'], cursor)
-            headers['Host'] = "www.11467.com"
-            content = craw_text(link)  # 获取文本，以代理的模式
-            # 接下来对文本进行解析处理,函数返回的结果是每一个页面解析后的结果
-            if content:
-                if share_dict['common_id']!=id:
-                    print("进程%s正在进行解析页面得到联系方式" % os.getpid())
-                    get_contact_way(content, link)
-                    print("进程%s正在进行解析页面得到公司内容" % os.getpid())
-                    get_business_info(content, link)
+            lock.release()
+            if link:
+                print("进程%s爬取页面为 %s" % (os.getpid(),link))
+                headers['Host'] = "www.11467.com"
+                content = craw_text(link)  # 获取文本，以代理的模式
+                # 接下来对文本进行解析处理,函数返回的结果是每一个页面解析后的结果
+                if content:
+                    if share_dict['common_id']!=id:
+                        print("进程%s正在进行解析页面得到联系方式" % os.getpid())
+                        get_contact_way(content, link)
+                        print("进程%s正在进行解析页面得到公司内容" % os.getpid())
+                        get_business_info(content, link)
             lock.acquire()
             share_dict['common_id'] = share_dict['common_id'] + 1
             lock.release()
@@ -320,7 +328,7 @@ if __name__ == '__main__':
     # common_id=Value('i',id)
     lock=Lock()
     share_dict=Manager().dict()
-    share_dict['common_id'] = id
+    share_dict['common_id'] = 2480
     pool = Pool(initializer=init,initargs=(lock,))
     try:
         for x in range(4):
