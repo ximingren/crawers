@@ -4,7 +4,10 @@
 #
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
+import json
+import random
 
+import requests
 from scrapy import signals
 
 
@@ -50,6 +53,7 @@ class LianjiaSpiderMiddleware(object):
 
         # Must return only requests (not items).
         for r in start_requests:
+            r
             yield r
 
     def spider_opened(self, spider):
@@ -101,3 +105,35 @@ class LianjiaDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+
+class ProxyMiddleware(object):
+
+    def process_request(self, request, spider):
+        proxy = self.get_proxy()
+        request.meta['proxy'] = proxy
+
+    def get_proxy(self):
+        response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
+        data = json.loads(response.text)
+        proxies = random.choice(data['proxies'])
+        if proxies['is_https']:
+            proxy = 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])
+        else:
+            proxy = 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])
+
+
+class CatchExceptionMiddleware(object):
+
+    def process_response(self, request, response, spider):
+        if response.status < 200 or response.status > -400:
+            try:
+                proxy = ProxyMiddleware.get_proxy()
+                request.meta['proxy'] = proxy
+            except Exception as e:
+                print(e)
+
+# class HttpErrorMiddleware(object):
+    # DONT_RETRY_ERRORS=(TimeoutError,ConnectionRefusedError,ResponseNeverReceived,ConnectionError,ValueError)
+    # def process_request(self,request,spider):
+

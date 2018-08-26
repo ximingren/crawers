@@ -11,4 +11,11 @@ import scrapy
 class LianjiaItem(scrapy.Item):
     # define the fields for your item here like:
     # name = scrapy.Field()
-    pass
+    name=scrapy.Field()
+    resblock_type=scrapy.Field()
+    sale_status=scrapy.Field()
+    location=scrapy.Field()
+    resblock_area=scrapy.Field()
+    resblock_agent=scrapy.Field()
+    resblock_tag=scrapy.Field()
+    resblock_price=scrapy.Field()

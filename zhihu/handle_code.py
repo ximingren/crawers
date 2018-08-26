@@ -1,3 +1,6 @@
+import json
+import random
+
 import chardet
 import requests
 headers={
@@ -8,6 +11,10 @@ headers={
 "Referer":"https://www.zhihu.com",
 
 }
-response=requests.get('https://www.zhihu.com',headers=headers)
-print(response.content)
+response=requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
+data=json.loads(response.text)
+proxies=random.choice(data['proxies'])
+if proxies['is_https']:
+    proxy='https://'+str(proxies['ip'])+":"+str(proxies['port'])
+print(proxy)
 # print(response.content.decode('utf8','ignore'))
