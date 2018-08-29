@@ -1,3 +1,4 @@
+import logging
 import random
 
 
@@ -35,10 +36,17 @@ class RandomUserAgentMiddleware(object):
         "Opera/9.80 (Windows NT 6.0) Presto/2.12.388 Version/12.14",
         "Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14",
         "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.0) Opera 12.14",
-        "Opera/9.80 (Windows NT 5.1; U; zh-sg) Presto/2.9.181 Version/12.00"
+        "Opera/9.80 (Windows NT 5.1; U; zh-sg) Presto/2.9.181 Version/12.00",
+        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+        'Mozilla/5.0 (compatible; Yahoo! Slurp; http://help.yahoo.com/help/us/ysearch/slurp)',
+        'DuckDuckBot/1.0; (+http://duckduckgo.com/duckduckbot.html)',
+        'Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)',
+        'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)',
+        'ia_archiver (+http://www.alexa.com/site/help/webmasters; crawler@alexa.com)',
     ]
     def process_request(self,request,spider):
         ua=random.choice(self.UserAgent_List)
         if ua:
+            logging.info("现在的UserAgent为:"+ua)
             request.headers.setdefault('User-Agent',ua)
-

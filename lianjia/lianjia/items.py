@@ -19,3 +19,4 @@ class LianjiaItem(scrapy.Item):
     resblock_agent=scrapy.Field()
     resblock_tag=scrapy.Field()
     resblock_price=scrapy.Field()
+    city=scrapy.Field()
