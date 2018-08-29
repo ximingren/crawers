@@ -1,0 +1,11 @@
+Content-Type: text/html; charset=UTF-8
+Server: Lianjia
+Cache-Control: no-cache
+Vary: Accept-Encoding
+Set-Cookie: select_city=441300; expires=Wed, 29-Aug-2018 15:25:18 GMT; Max-Age=86400; path=/; domain=.lianjia.com
+Set-Cookie: lj_newh_session=eyJpdiI6InpITWtiUFBwSmZJWDBTK2FmcnJTMXc9PSIsInZhbHVlIjoiVEFWXC9Zd1ZvTWFDdHBzbmxXeHhUSGdrSTFwVk9wS3UrUWJ5aUZWV0k5aVpvWk5GVkxTNUd0K1hrT3o5cEc1OXJRVGtrKzdsVTNCcTRZREhRelwvSEJJUT09IiwibWFjIjoiYjNiNjcyMTVlZjY4MmE0MDI4YTYxZjI2ZWYwMmMwMTJmYTMwNTQyNTI4ZDkxZGM4Mjc5YWNlOTdhMWNkNzQwZCJ9; expires=Tue, 28-Aug-2018 17:25:19 GMT; Max-Age=7200; path=/; HttpOnly
+Set-Cookie: lianjia_ssid=5eba2215-4e27-4d78-9f64-4f2b9266f1e8; expires=Tue, 28-Aug-18 15:55:18 GMT; Max-Age=1800; domain=.lianjia.com; path=/
+Set-Cookie: lianjia_uuid=f9283ee6-ed80-45d6-94f8-a9c3b8c2612e; expires=Fri, 25-Aug-28 15:25:18 GMT; Max-Age=315360000; domain=.lianjia.com; path=/
+Date: Tue, 28 Aug 2018 15:25:19 GMT
+Content-Encoding: gzip
+Via: web05-online.zeus.ljnode.com

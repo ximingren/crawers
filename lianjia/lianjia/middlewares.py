@@ -112,14 +112,14 @@ class LianjiaDownloaderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response object: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
-        # if isinstance(exception,TunnelError) or isinstance(exception,error.TimeoutError):
-        #         try:
-        #             logging.error("发生异常%s"%str(exception))
-        #             logging.info("添加ban掉的代理地址%s" % request.meta['proxy'])
-        #             self.ban_ips.append(request.meta['proxy'])
-        #             return request
-        #         except Exception as e:
-        #             print(e)
+        if isinstance(exception,TunnelError) or isinstance(exception,error.TimeoutError):
+                try:
+                    logging.error("发生异常%s"%str(exception))
+                    logging.info("添加ban掉的代理地址%s" % request.meta['proxy'])
+                    self.ban_ips.append(request.meta['proxy'])
+                    return request
+                except Exception as e:
+                    print(e)
         return  request
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
