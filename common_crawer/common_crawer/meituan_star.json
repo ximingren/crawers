@@ -1,0 +1,24 @@
+{
+  "star": [
+    {
+      "checked": "!1",
+      "label": "经济型",
+      "value": "6"
+    },
+    {
+      "checked": "!1",
+      "label": "舒适/三星",
+      "value": "4,5"
+    },
+    {
+      "checked": "!1",
+      "label": "高档/四星",
+      "value": "2,3"
+    },
+    {
+      "checked": "!1",
+      "label": "豪华/五星",
+      "value": "0,1"
+    }
+  ]
+}

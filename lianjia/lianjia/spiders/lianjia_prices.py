@@ -6,7 +6,7 @@ import scrapy
 from scrapy import Request
 import logging
 
-from lianjia.items import LianjiaItem
+from scrapy_project.items import LianjiaItem
 
 
 # User timeout caused connection failure.
@@ -14,7 +14,7 @@ from lianjia.items import LianjiaItem
 # Internal Server Error
 # 发生错误的request不会回到List中
 class LianjiaPrices(scrapy.Spider):
-    name = 'lianjia'
+    name = 'scrapy_project'
     need_city = {'cd': "成都",
                  'cs': "长沙",
                  'dl': "大连",
@@ -39,7 +39,7 @@ class LianjiaPrices(scrapy.Spider):
                  'wx': "无锡",
                  'zz': "郑州",
                  'km': "昆明"}
-    url = "https://%s.fang.lianjia.com/loupan/pg%s"
+    url = "https://%s.fang.scrapy_project.com/loupan/pg%s"
     current_city = 0
     handle_httpstatus_list = [404, 403]
     # def process_request(self,request,spider):

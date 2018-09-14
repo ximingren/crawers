@@ -7,7 +7,7 @@ from scrapy.downloadermiddlewares.retry import RetryMiddleware
 from scrapy.utils.python import global_object_name
 from scrapy.utils.response import response_status_message
 
-from lianjia.lianjia.middlewares import LianjiaDownloaderMiddleware
+from scrapy_project.lianjia.middlewares import LianjiaDownloaderMiddleware
 
 
 class CustomRetryMIddleware(RetryMiddleware):

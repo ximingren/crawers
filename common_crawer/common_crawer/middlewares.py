@@ -14,7 +14,7 @@ from scrapy.core.downloader.handlers.http11 import TunnelError
 from twisted.internet import error
 
 
-class LianjiaSpiderMiddleware(object):
+class CommonCrawerSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
     # passed objects.
@@ -62,13 +62,12 @@ class LianjiaSpiderMiddleware(object):
         spider.logger.info('Spider opened: %s' % spider.name)
 
 
-class LianjiaDownloaderMiddleware(object):
+class CommonCrawerDownloaderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
 
-    ban_ips=[]
-
+    ban_ips = []
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
@@ -79,18 +78,19 @@ class LianjiaDownloaderMiddleware(object):
     def process_request(self, request, spider):
         # Called for each request that goes through the downloader
         # middleware.
-
         # Must either:
         # - return None: continue processing this request
         # - or return a Response object
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
-        logging.info("准备请求下载%s页面"%request.url)
-        request.headers.setdefault("Referer",request.url)
-        proxy=self.valid_proxies()
-        logging.info('使用代理%s' % proxy)
-        request.meta['proxy'] = proxy
+        logging.info("准备请求下载%s页面" % request.url)
+        request.headers.setdefault("Referer", request.url)
+        if spider.settings['USE_PROXY']:
+            # proxy = self.valid_proxies()
+            proxy="https://185.93.3.70:8080"
+            logging.info('使用代理%s' % proxy)
+            request.meta['proxy'] = proxy
         return None
 
     def process_response(self, request, response, spider):
@@ -99,8 +99,8 @@ class LianjiaDownloaderMiddleware(object):
         # - return a Response object
         # - return a Request object
         # - or raise IgnoreRequest
-        if response.status==200:
-            logging.info("下载%s页面完成"%response.url)
+        if response.status == 200:
+            logging.info("下载%s页面完成" % response.url)
             return response
 
     def process_exception(self, request, exception, spider):
@@ -111,14 +111,17 @@ class LianjiaDownloaderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response bject: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
-        if isinstance(exception,TunnelError) or isinstance(exception,error.TimeoutError):
-                    logging.error("发生异常%s"%str(exception))
-                    logging.info("添加ban掉的代理地址%s" % request.meta['proxy'])
-                    self.ban_ips.append(request.meta['proxy'])
-                    proxy=self.valid_proxies()
-                    request.meta['proxy']=proxy
-                    return request
-        return  None
+        if isinstance(exception, TunnelError) or isinstance(exception, error.TimeoutError):
+            logging.error("发生异常%s" % str(exception))
+            if spider.settings['USE_PROXY']:
+                logging.info("添加ban掉的代理地址%s" % request.meta['proxy'])
+                self.ban_ips.append(request.meta['proxy'])
+                # proxy = self.valid_proxies()
+                proxy='http://104.238.146.146:8118'
+                request.meta['proxy'] = proxy
+                return request
+        return None
+
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
 
@@ -133,7 +136,7 @@ class LianjiaDownloaderMiddleware(object):
         return proxy
 
     def valid_proxies(self):
-        proxy=self.get_proxy()
+        proxy = self.get_proxy()
         while proxy in self.ban_ips:
-            proxy=self.get_proxy()
+            proxy = self.get_proxy()
         return proxy
