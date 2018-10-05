@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import ast
 import datetime
 import json
 import logging
@@ -97,28 +98,28 @@ class EbotappSpider(scrapy.Spider):
             EnMovieID = film['EnMovieID']
             movieName = film['MovieName']
             yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByBaseInfo',
-                              formdata={'EnMovieID': EnMovieID},meta={'film_data':{},'EnMovieID': EnMovieID},callback=self.get_base)
+                              formdata={'EnMovieID': str(EnMovieID)},meta={'EnMovieID': str(EnMovieID)},callback=self.get_base)
 
 
     def get_base(self, response):
         try:
-            film_data=response.meta['film_data']
+            film_data=dict()
             enMovieID=response.meta['EnMovieID']
             base_info_res = response
-            base_info_1 = base_info_res.json()['Data']['Table1'][0]
+            base_info_1 = json.loads(base_info_res.text)['Data']['Table1'][0]
             for key, value in dict(base_info_1).items():
                 film_data[key] = value
             yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',
-                                            formdata={'EnMovieID': enMovieID},meta={'film_data':film_data,'EnMovieID':enMovieID},callback=self.get_people)
+                                            formdata={'EnMovieID': enMovieID},meta={'film_data':str(film_data).encode('utf8'),'EnMovieID':enMovieID},callback=self.get_people)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
             print("解析基础信息时发生错误",e)
     def get_people(self, response):
         try:
             detail_info_res = response
-            film_data = response.meta['film_data']
+            film_data = ast.literal_eval(response.meta['film_data'].decode('utf8'))
             try:
-                detail_info = detail_info_res.json()
+                detail_info = json.loads(detail_info_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -133,16 +134,16 @@ class EbotappSpider(scrapy.Spider):
                 film_data.update(people_dict)
             yield  FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',
                                             formdata={'EnMovieID': response.meta['EnMovieID']},
-                               meta={'film_data':film_data,'EnMovieID':response.meta['EnMovieID']},callback=self.get_company)
+                               meta={'film_data':str(film_data).encode('utf8'),'EnMovieID':response.meta['EnMovieID']},callback=self.get_company)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
             print("解析人员时发生错误",e)
     def get_company(self, response):
         try:
             relate_company_info_res =response
-            film_data = response.meta['film_data']
+            film_data = ast.literal_eval(response.meta['film_data'].decode('utf8'))
             try:
-                relate_company_info = relate_company_info_res.json()
+                relate_company_info = json.loads(relate_company_info_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -171,7 +172,7 @@ class EbotappSpider(scrapy.Spider):
                     eDate = releaseDate + datetime.timedelta(days=10)
                     yield  FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MarketingData_EffectIndex',
                                              formdata={'EnMovieID': response.meta['EnMovieID'], 'sDate': sDate, 'eDate': eDate},
-                                       meta={'film_data':film_data,'EnMovieID':response.meta['EnMovieID'],'sDate':sDate,'eDate':eDate},callback=self.get_index
+                                       meta={'film_data':str(film_data).encode('utf8'),'EnMovieID':response.meta['EnMovieID'],'sDate':sDate,'eDate':eDate},callback=self.get_index
                                        )
                 else:
                     film_data=self.clear_data(film_data)
@@ -183,10 +184,10 @@ class EbotappSpider(scrapy.Spider):
             print("解析相关公司时发生错误",e)
     def get_audience(self, response):
         try:
-            film_data = response.meta['film_data']
+            film_data = ast.literal_eval(response.meta['film_data'].decode('utf8'))
             audience_info_res = response
             try:
-                audience_info = audience_info_res.json()
+                audience_info = json.loads(audience_info_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -205,17 +206,17 @@ class EbotappSpider(scrapy.Spider):
                     film_data['地域分布'].append(area['ProvinceName'] + ":" + str(area['Num']))
             yield  FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByRowPiece',
                                          formdata={'EnMovieID': response.meta['EnMovieID'], 'MovieID': response.meta['MovieID'], 'sDate': response.meta['sDate'], 'eDate': response.meta['eDate'],
-                                               'Index': '102,201,202,203,205,221,222,251,801,604,606', 'ServicePrice': 1}, meta={'film_data': film_data, 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
+                                               'Index': '102,201,202,203,205,221,222,251,801,604,606', 'ServicePrice': 1}, meta={'film_data': str(film_data).encode('utf8'), 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
                                     'eDate':  response.meta['eDate']},callback=self.get_rowPrice)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
             print("解析观众分布时发生错误",e)
     def get_index(self,response):
         try:
-            film_data=response.meta['film_data']
+            film_data=ast.literal_eval(response.meta['film_data'].decode('utf8'))
             effect_index_res =response
             try:
-                effect_index = effect_index_res.json()
+                effect_index = json.loads(effect_index_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -232,7 +233,7 @@ class EbotappSpider(scrapy.Spider):
                 film_data['RenZhiIndex'] = renIndex_list  # 认知指数
             yield  FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByTimeIntervalTOP',
                                            formdata={'EnMovieID': response.meta['EnMovieID'], 'sDate': response.meta['sDate'], 'eDate': response.meta['eDate'],
-                                                 'MovieID': film_data['EnMovieID']}, meta={'film_data':film_data,'EnMovieID':response.meta['EnMovieID'],'sDate':response.meta['sDate'],'eDate':response.meta['eDate']},
+                                                 'MovieID': film_data['EnMovieID']}, meta={'film_data':str(film_data).encode('utf8'),'EnMovieID':response.meta['EnMovieID'],'sDate':response.meta['sDate'],'eDate':response.meta['eDate']},
                                callback=self.get_distribute)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
@@ -240,10 +241,10 @@ class EbotappSpider(scrapy.Spider):
 
     def get_distribute(self, response):
         try:
-            film_data = response.meta['film_data']
+            film_data = ast.literal_eval(response.meta['film_data'].decode('utf8'))
             distribute_res = response
             try:
-                distribute = distribute_res.json()
+                distribute = json.loads(distribute_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -266,7 +267,7 @@ class EbotappSpider(scrapy.Spider):
                                                formdata={'EnMovieID': response.meta['EnMovieID'], 'MovieID': response.meta['MovieID'], 'sDate': response.meta['sDate'],
                                                      'eDate': response.meta['eDate'],
                                                      'Index': '102,201,202,203,205,221,222,251,801,604,606', 'ServicePrice': 1},
-                              meta={'film_data': film_data, 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
+                              meta={'film_data': str(film_data).encode('utf8'), 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
                                     'eDate':  response.meta['eDate']},callback=self.get_boxOffice)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
@@ -277,10 +278,10 @@ class EbotappSpider(scrapy.Spider):
             f.write(str(id)+'\n')
     def get_boxOffice(self, response):
         try:
-            film_data = response.meta['film_data']
+            film_data = ast.literal_eval(response.meta['film_data'].decode('utf8'))
             boxOffice_info_res = response
             try:
-                boxOffice_info = boxOffice_info_res.json()
+                boxOffice_info = json.loads(boxOffice_info_res.text)
             except Exception as e:
                 print(e)
             else:
@@ -304,7 +305,7 @@ class EbotappSpider(scrapy.Spider):
                         film_data['Attendance'].append(box['InsertDate'] + ":" + str(box['Attendance']))  # 上座率
                         film_data['ServicePrice'].append(box['InsertDate'] + ":" + str(box['ServicePrice']))  # 服务费
             yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByAudience',
-                                              formdata={'EnMovieID': response.meta['EnMovieID']}, meta={'film_data': film_data, 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
+                                              formdata={'EnMovieID': response.meta['EnMovieID']}, meta={'film_data': str(film_data).encode('utf8'), 'EnMovieID': response.meta['EnMovieID'], 'sDate':  response.meta['sDate'],
                                     'eDate':  response.meta['eDate']},callback=self.get_audience)
         except Exception as e:
             self.write_txt(response.meta['EnMovieID'])
@@ -312,10 +313,10 @@ class EbotappSpider(scrapy.Spider):
 
     def get_rowPrice(self, response):
         try:
-            film_data=response.meta['film_data']
+            film_data=ast.literal_eval(response.meta['film_data'].decode('utf8'))
             rowPrice_res =response
             try:
-                rowPrice = rowPrice_res.json()
+                rowPrice = json.loads(rowPrice_res.text)
             except Exception as e:
                 print(e)
             else:

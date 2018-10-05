@@ -32,8 +32,12 @@ class _58CrawerPipeline(object):
     def process_item(self, item, spider):
         try:
             item=item['item']
-            self.db[self.collection_name].update({'name': item['MovieName']}, {'$set': dict(item)}, True)
-            logging.info("插入数据成功%s"%str(item['MovieName']))
+            if not item['MovieName']:
+                name=item['EnMovieName']
+            else:
+                name=item['MovieName']
+            self.db[self.collection_name].update({'name': name}, {'$set': dict(item)}, True)
+            logging.info("插入数据成功%s"%str(name))
             return item
         except Exception as e:
             print(e)

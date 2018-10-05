@@ -123,7 +123,7 @@ MAIL_FROM='yanlunka@163.com'
 MAIL_USER='yanlunka@163.com'
 MAIL_PASS="qq13516654182"
 
-USE_PROXY=True
+USE_PROXY=False
 
 # 配置分布式
 # DUPEFILTER_CLASS="scrapy_redis.duperfilter.RFPDuperFilter"
