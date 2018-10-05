@@ -18,7 +18,7 @@ from scrapy.utils.log import logger
 
 
 class EbotappSpider(scrapy.Spider):
-    name = 'ebotapp'
+    name = 'ebotapp1'
 
     # start_urls = ['http://ebotapp/']
     def openlink(self,url,data):
@@ -50,108 +50,56 @@ class EbotappSpider(scrapy.Spider):
             pageSize = 30
             params = {'companyid': str(id), 'pageIndex': str(page),
                       'pageSize': str(pageSize)}
-            response=self.openlink('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks',
-                              data=params)
-            pageSize = 30
-            film_list = json.loads(response.text)  # 电影列表
-            totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
-            if totalCounts > 0:
-                totalPage = int(film_list['Data']['Table2'][0]['TotalPage'])  # 总页数
-                # self.parse_main(film_list)
-                for page in range(1, totalPage):
-                   response=self.openlink('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks',
-                                      data={'companyid': str(id), 'pageIndex': str(page),'pageSize': str(pageSize)})
-                   film_list = json.loads(response.text)  # 电影列表
-                   totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
-                   for film in film_list['Data']['Table1']:
-                       self.film_data = {}
-                       EnMovieID = film['EnMovieID']
-                       movieName = film['MovieName']
-                       self.get_base(EnMovieID)  # 票房汇总信息
-                       self.get_people(EnMovieID)  # 剧组人员
-                       self.get_company(EnMovieID)  # 相关公司
-                       releaseDate = ''
-                       if self.film_data['ReleaseDate'] != '':
-                           if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate'] and '日' in \
-                                   self.film_data['ReleaseDate']:
-                               releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月%d日")
-                           if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate']:
-                               releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月")
-                           if '年' in self.film_data['ReleaseDate']:
-                               releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年")
-                           else:
-                               releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y-%m-%d")
-                           if releaseDate < datetime.datetime.now():
-                               sDate = releaseDate - datetime.timedelta(days=1)
-                               eDate = releaseDate + datetime.timedelta(days=10)
-                               self.get_index(EnMovieID, sDate, eDate)  # 影响指数
-                               self.get_distribute(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 票房分布
-                               self.get_boxOffice(EnMovieID, sDate, eDate, self.film_data['MovieID'])
-                               self.get_audience(EnMovieID)  # 观众
-                               self.get_rowPrice(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 排片
-                       self.clear_data()
-                       item = Ebotapp()
-                       item['item'] = self.film_data
-                       yield item
+            yield FormRequest('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks',meta=params,
+                              formdata=params)
 
-    def get_film_index(self, response):
-        """
-        解析结果，查出该公司下有多少个电影.接着迭代请求，把该公司的所有电影数据爬取
-        :param response:
-        :return:
-        """
-        companyid = response.meta['companyid']
+    def parse(self,response):
         pageSize = 30
+        id=response.meta['companyid']
         film_list = json.loads(response.text)  # 电影列表
         totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
         if totalCounts > 0:
             totalPage = int(film_list['Data']['Table2'][0]['TotalPage'])  # 总页数
             # self.parse_main(film_list)
             for page in range(1, totalPage):
-                yield FormRequest('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks', method='POST',dont_filter=True,
-                                  formdata={'companyid': str(companyid), 'pageIndex': str(page),
-                                            'pageSize': str(pageSize)}, meta={'totalPage': totalPage},
-                                  callback=self.get_film_list)
-
-    def get_film_list(self, response):
-        """
-        解析电影列表数据
-        :param response:
-        :return:
-        """
-        film_list = json.loads(response.text)  # 电影列表
-        totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
-        for film in film_list['Data']['Table1']:
-            self.film_data = {}
-            EnMovieID = film['EnMovieID']
-            movieName = film['MovieName']
-            self.get_base(EnMovieID)  # 票房汇总信息
-            self.get_people(EnMovieID)  # 剧组人员
-            self.get_company(EnMovieID)  # 相关公司
-            releaseDate = ''
-            if self.film_data['ReleaseDate'] != '':
-                if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate'] and '日' in \
-                        self.film_data['ReleaseDate']:
-                    releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月%d日")
-                if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate']:
-                    releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月")
-                if '年'in self.film_data['ReleaseDate']:
-                    releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年")
-                else:
-                    releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y-%m-%d")
-                if releaseDate < datetime.datetime.now():
-                    sDate = releaseDate - datetime.timedelta(days=1)
-                    eDate = releaseDate + datetime.timedelta(days=10)
-                    self.get_index(EnMovieID, sDate, eDate)  # 影响指数
-                    self.get_distribute(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 票房分布
-                    self.get_boxOffice(EnMovieID, sDate, eDate, self.film_data['MovieID'])
-                    self.get_audience(EnMovieID)  # 观众
-                    self.get_rowPrice(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 排片
-            self.clear_data()
-            item = Ebotapp()
-            item['item'] = self.film_data
-            yield item
-
+                response = self.openlink('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks',
+                                         data={'companyid': str(id), 'pageIndex': str(page), 'pageSize': str(pageSize)})
+                film_list = json.loads(response.text)  # 电影列表
+                totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
+                for film in film_list['Data']['Table1']:
+                    self.film_data = {}
+                    EnMovieID = film['EnMovieID']
+                    movieName = film['MovieName']
+                    self.get_base(EnMovieID)  # 票房汇总信息
+                    self.get_people(EnMovieID)  # 剧组人员
+                    self.get_company(EnMovieID)  # 相关公司
+                    releaseDate = ''
+                    if self.film_data['ReleaseDate'] != '':
+                        try:
+                            if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate'] and '日' in \
+                                    self.film_data['ReleaseDate']:
+                                releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月%d日")
+                            if '年' in self.film_data['ReleaseDate'] and '月' in self.film_data['ReleaseDate']:
+                                releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年%m月")
+                            if '年' in self.film_data['ReleaseDate']:
+                                releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y年")
+                            else:
+                                releaseDate = datetime.datetime.strptime(self.film_data['ReleaseDate'], "%Y-%m-%d")
+                        except Exception as e:
+                            print(e)
+                        else:
+                            if releaseDate < datetime.datetime.now():
+                                sDate = releaseDate - datetime.timedelta(days=1)
+                                eDate = releaseDate + datetime.timedelta(days=10)
+                                self.get_index(EnMovieID, sDate, eDate)  # 影响指数
+                                self.get_distribute(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 票房分布
+                                self.get_boxOffice(EnMovieID, sDate, eDate, self.film_data['MovieID'])
+                                self.get_audience(EnMovieID)  # 观众
+                                self.get_rowPrice(EnMovieID, sDate, eDate, self.film_data['MovieID'])  # 排片
+                    self.clear_data()
+                    item = Ebotapp()
+                    item['item'] = self.film_data
+                    yield item
     def get_base(self, EnMovieID):
         try:
             base_info_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByBaseInfo',
