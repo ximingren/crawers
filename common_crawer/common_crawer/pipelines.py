@@ -5,12 +5,11 @@
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 import logging
-
 import pymongo
 
 
 class _58CrawerPipeline(object):
-    collection_name = 'hotel_price'
+    collection_name = 'film'
 
     def __init__(self, mongo_url, mongo_db):
         self.mongo_url = mongo_url
@@ -32,8 +31,9 @@ class _58CrawerPipeline(object):
 
     def process_item(self, item, spider):
         try:
-            self.db[self.collection_name].update({'name': item['name']}, {'$set': dict(item)}, True)
-            # logging.info("插入数据成功%s"%str(dict(item)))
+            item=item['item']
+            self.db[self.collection_name].update({'name': item['MovieName']}, {'$set': dict(item)}, True)
+            logging.info("插入数据成功%s"%str(item['MovieName']))
             return item
         except Exception as e:
             print(e)

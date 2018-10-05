@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-
 import scrapy
 from scrapy import Request
 from common_crawer.items import MeituanHotelItem

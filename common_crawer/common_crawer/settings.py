@@ -22,17 +22,17 @@ NEWSPIDER_MODULE = 'common_crawer.spiders'
 ROBOTSTXT_OBEY = False
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # 并发的request连接数
-CONCURRENT_REQUESTS = 50
+CONCURRENT_REQUESTS = 20
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 # 定义下载延时
-DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 3
 # 定义下载超时
-DOWNLOAD_TIMEOUT = 15
+DOWNLOAD_TIMEOUT = 13
 # 每个并发最大的ip限制数
-CONCURRENT_REQUESTS_PER_IP = 10
+CONCURRENT_REQUESTS_PER_IP = 20
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -105,7 +105,7 @@ ITEM_PIPELINES = {
 
 # 定义MongoDB
 MONGO_URI = "mongodb://localhost"
-MONGO_DATABASE = "meituan"
+MONGO_DATABASE = "ebotapp"
 
 # 定义日志
 LOG_LEVEL = "INFO"
@@ -124,3 +124,16 @@ MAIL_USER='yanlunka@163.com'
 MAIL_PASS="qq13516654182"
 
 USE_PROXY=True
+
+# 配置分布式
+# DUPEFILTER_CLASS="scrapy_redis.duperfilter.RFPDuperFilter"
+# SCHEDULER="scrapy_redis.scheduler.Scheduler"
+# SCHEDULER_PERSIST=True
+
+# REDIS_HOST='172.16.14.92'
+# REDIS_PORT=6379
+
+# ITEM_PIPELINES={
+#     'common_crawer.pipelines._58CrawerPipeline':300,
+#     'scrapy_redis.pipelines.RedisPipeline':400
+# }

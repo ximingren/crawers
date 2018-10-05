@@ -85,10 +85,11 @@ class CommonCrawerDownloaderMiddleware(object):
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
         logging.info("准备请求下载%s页面" % request.url)
+        logging.info("请求参数为%s"%str(request.body.decode('utf8')))
         request.headers.setdefault("Referer", request.url)
         if spider.settings['USE_PROXY']:
-            # proxy = self.valid_proxies()
-            proxy="https://185.93.3.70:8080"
+            proxy = self.valid_proxies()
+            # proxy="https://185.93.3.70:8080"
             logging.info('使用代理%s' % proxy)
             request.meta['proxy'] = proxy
         return None
@@ -100,7 +101,7 @@ class CommonCrawerDownloaderMiddleware(object):
         # - return a Request object
         # - or raise IgnoreRequest
         if response.status == 200:
-            logging.info("下载%s页面完成" % response.url)
+            logging.error("下载页面成功%s!!!!!!!!!!!"%response.url)
             return response
 
     def process_exception(self, request, exception, spider):
@@ -111,15 +112,18 @@ class CommonCrawerDownloaderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response bject: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
+        logging.info("发生异常%s"%request.url)
         if isinstance(exception, TunnelError) or isinstance(exception, error.TimeoutError):
             logging.error("发生异常%s" % str(exception))
             if spider.settings['USE_PROXY']:
                 logging.info("添加ban掉的代理地址%s" % request.meta['proxy'])
                 self.ban_ips.append(request.meta['proxy'])
-                # proxy = self.valid_proxies()
-                proxy='http://104.238.146.146:8118'
-                request.meta['proxy'] = proxy
+                proxy = self.valid_proxies()
+                # proxy='http://104.238.146.146:8118'
+                # request.meta['proxy'] = proxy
                 return request
+        with open('error.txt','a') as f:
+            f.write(str(request.body))
         return None
 
     def spider_opened(self, spider):

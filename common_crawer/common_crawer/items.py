@@ -33,3 +33,35 @@ class MeituanHotelItem(scrapy.Item):
     startDay=scrapy.Field()
     endDay=scrapy.Field()
     cityName=scrapy.Field()
+
+
+class MeituanWaiMaiItem(scrapy.Item):
+    pass
+
+class Ebotapp(scrapy.Item):
+    item=scrapy.Field()
+    # MovieName=scrapy.Field() #电影名称
+    # dirctor=scrapy.Field() #导演
+    # actor=scrapy.Field() #演员
+    # producer=scrapy.Field() #制片人
+    # screenwriter=scrapy.Field() #编剧
+    # art=scrapy.Field() #美术
+    # film_distrbution_corporation=scrapy.Field() #发行公司
+    # ReleaseDate=scrapy.Field() #上映时间
+    # BoxOfficeToTal=scrapy.Field() # 累计票房
+    # BoxOfficePoint=scrapy.Field() #点映票房
+    # BoxOfficeFirstDay=scrapy.Field() # 首日票房
+    # BoxOfficeFirstWeek=scrapy.Field() #首周票房
+    # Genre=scrapy.Field() #电影类型
+    # GenreMain=scrapy.Field() #电影主类型
+    # Runtime=scrapy.Field() #时长
+    # BoxOfficeEveryDay=scrapy.Field() #每日总票房
+    # screeningsEveryDay=scrapy.Field() #每日场次
+    # boxOffice_distribution=scrapy.Field() #票房分布
+    # BuyTicketIndex=scrapy.Field() #购票指数
+    # RenZhiIndex=scrapy.Field() #认知指数
+    # RapIndex=scrapy.Field() #口碑指数
+    # age_distribution=scrapy.Field() #年龄分布
+    # area_distribution=scrapy.Field() #地域分布
+    # gender_distribution=scrapy.Field() # 性别分布
+
