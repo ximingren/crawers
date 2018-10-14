@@ -22,17 +22,17 @@ NEWSPIDER_MODULE = 'common_crawer.spiders'
 ROBOTSTXT_OBEY = False
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # 并发的request连接数
-CONCURRENT_REQUESTS = 20
+CONCURRENT_REQUESTS = 1000
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 # 定义下载延时
-DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 1
 # 定义下载超时
 DOWNLOAD_TIMEOUT = 13
 # 每个并发最大的ip限制数
-CONCURRENT_REQUESTS_PER_IP = 20
+CONCURRENT_REQUESTS_PER_IP = 40
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -64,7 +64,7 @@ DOWNLOADER_MIDDLEWARES = {
     'common_crawer.middlewares.CommonCrawerSpiderMiddleware': 543,
     'common_crawer.middlewares.CommonCrawerDownloaderMiddleware': 540,
     'common_crawer.RandomHeadersMiddleware.RandomUserAgentMiddleware': 400,
-'scrapy.downloadermiddlewares.redirect.RedirectMiddleware':None,
+'scrapy.downloadermiddlewares.redirect.RedirectMiddleware':450,
     'common_crawer.CommonRedirectMiddleware.CommonRedirectMiddleware':31,
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
 }
@@ -123,7 +123,7 @@ MAIL_FROM='yanlunka@163.com'
 MAIL_USER='yanlunka@163.com'
 MAIL_PASS="qq13516654182"
 
-USE_PROXY=False
+USE_PROXY=True
 
 # 配置分布式
 # DUPEFILTER_CLASS="scrapy_redis.duperfilter.RFPDuperFilter"

@@ -137,7 +137,7 @@ def get_rowPrice(EnMovieID,sDate, eDate, MovieID, Index='102,201,202,203,205,221
     data['HjShowCount_list']=[] #黄金场次
     data['swShowCount_list']=[] #上午场次
     data['xwShowCount_list']=[] #上午场次
-    data['JyShowCount_list']=[] #上午场次
+    data['JyShowCount_list']=[] #加应场
     data['ShowCountPercent_list']=[] # 排片占比
     data['OfferSeatPercent_list']=[] # 排座占比
     for row in rowPrice_data:

@@ -1,1 +1,1 @@
-spider=FollowAllSpider(domain='scrapy_project.com')
+spider=FollowAllSpider(domain='lianjia.com')

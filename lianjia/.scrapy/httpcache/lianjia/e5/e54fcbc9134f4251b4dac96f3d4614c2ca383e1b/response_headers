@@ -1,0 +1,11 @@
+Server: Lianjia
+Content-Encoding: gzip
+Date: Thu, 30 Aug 2018 02:31:20 GMT
+Set-Cookie: select_city=610100; expires=Fri, 31-Aug-2018 02:31:20 GMT; Max-Age=86400; path=/; domain=.lianjia.com
+Set-Cookie: lj_newh_session=eyJpdiI6Ik8yc3VES21UY0lxNXFFKytZbXlrUUE9PSIsInZhbHVlIjoiTTJYVFp4UE9qRE1tc0hEMDh4NDJqbEVtMFhjbEZFWkMxV25sVDVZVFFlalpRWXQ0bmFRSUJzRTB0S28zaGRoZG0zV01UVXJFVVplWmE5cDlIVFFvWGc9PSIsIm1hYyI6IjNjNjFjOTIxZGRhYzI1YjNmYjk1ZWM0OGM1YTg1ZDE5NTBhNWNlYWM0ZTI0MDdiZDczMWEyZTAzOWNmOThiYmUifQ%3D%3D; expires=Thu, 30-Aug-2018 04:31:20 GMT; Max-Age=7200; path=/; HttpOnly
+Set-Cookie: lianjia_ssid=48cd28ac-bb02-42e3-bdca-a0715afdf044; expires=Thu, 30-Aug-18 03:01:20 GMT; Max-Age=1800; domain=.lianjia.com; path=/
+Set-Cookie: lianjia_uuid=98f9d3c1-d1d7-4e45-b4d8-b942a8168dd9; expires=Sun, 27-Aug-28 02:31:20 GMT; Max-Age=315360000; domain=.lianjia.com; path=/
+Content-Type: text/html; charset=UTF-8
+Vary: Accept-Encoding
+Via: web09-online.mars.ljnode.com
+Cache-Control: no-cache

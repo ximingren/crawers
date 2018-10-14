@@ -9,7 +9,7 @@ import pymongo
 
 
 class _58CrawerPipeline(object):
-    collection_name = 'film'
+    collection_name = 'cboocn2'
 
     def __init__(self, mongo_url, mongo_db):
         self.mongo_url = mongo_url
@@ -31,13 +31,10 @@ class _58CrawerPipeline(object):
 
     def process_item(self, item, spider):
         try:
-            item=item['item']
-            if not item['MovieName']:
-                name=item['EnMovieName']
-            else:
-                name=item['MovieName']
-            self.db[self.collection_name].update({'name': name}, {'$set': dict(item)}, True)
-            logging.info("插入数据成功%s"%str(name))
+            # item=item['item']
+            EnMovieID=item['EnMovieID']
+            self.db[self.collection_name].update({'EnMovieID': EnMovieID}, {'$set': dict(item)}, True)
+            logging.info("插入数据成功%s,ID为%s"%(str(item['name']),str(EnMovieID)))
             return item
         except Exception as e:
             print(e)

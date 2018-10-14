@@ -130,14 +130,20 @@ class CommonCrawerDownloaderMiddleware(object):
         spider.logger.info('Spider opened: %s' % spider.name)
 
     def get_proxy(self):
-        response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
-        data = json.loads(response.text)
-        proxies = random.choice(data['proxies'])
-        if proxies['is_https']:
-            proxy = 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])
-        else:
-            proxy = 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])
-        return proxy
+        # response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
+        # data = json.loads(response.text)
+        # proxies = random.choice(data['proxies'])
+        # if proxies['is_https']:
+        #     proxy = 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])
+        # else:
+        #     proxy = 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])
+        # return proxy
+
+        # response=requests.get('http://localhost:12345/api/proxy/')
+        # data=response.json()
+        # return data['data']['detail'][0]['url']
+        response=requests.get('http://127.0.0.1:5010/get/')
+        return 'http://'+response.text
 
     def valid_proxies(self):
         proxy = self.get_proxy()

@@ -38,6 +38,32 @@ class MeituanHotelItem(scrapy.Item):
 class MeituanWaiMaiItem(scrapy.Item):
     pass
 
+class Cboocn(scrapy.Item):
+    name=scrapy.Field()
+    enName=scrapy.Field()
+    boxOffice_total=scrapy.Field()
+    now_boxOffice=scrapy.Field()
+    genre=scrapy.Field()
+    runTime=scrapy.Field()
+    releaseDate=scrapy.Field()
+    standard=scrapy.Field()
+    country=scrapy.Field()
+    director=scrapy.Field()
+    starring=scrapy.Field()
+    production_co=scrapy.Field()
+    distribution_co=scrapy.Field()
+    inland_avg=scrapy.Field()
+    inland_week=scrapy.Field()
+    inland_total=scrapy.Field()
+    inland_days=scrapy.Field()
+    hk_rank=scrapy.Field()
+    hk_week=scrapy.Field()
+    hk_total=scrapy.Field()
+    am_rank=scrapy.Field()
+    am_week=scrapy.Field()
+    am_total=scrapy.Field()
+    EnMovieID=scrapy.Field()
+
 class Ebotapp(scrapy.Item):
     item=scrapy.Field()
     # MovieName=scrapy.Field() #电影名称
