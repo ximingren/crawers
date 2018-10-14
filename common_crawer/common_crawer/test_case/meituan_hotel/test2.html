@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport"
+	content="initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,width=device-width" />
+<title>请输入验证码</title>
+<link rel="stylesheet" type="text/css"
+	href="/new_index.css">
+<script type="text/javascript"
+	src="/jquery-1.10.1.min.js"></script>
+</head>
+<body>
+	<div class="pop">
+		<p class="title">访问过于频繁，本次访问做以下验证码校验</p>
+		<div class="main">
+			<div class="code_img">
+				<span>请在五分钟内完成验证</span>
+			</div>
+			<div class="code_num">
+				<input type="button" class="btn_tj" id="btnSubmit"
+					 value="点击按钮进行验证">
+			</div>
+			<div class="toast_mess" id="errmsg"></div>
+			<div id="ISDCaptcha"></div>
+		</div>
+	</div>
+	<div class="footer">
+		©  <a href="http://www.58.com">58.COM</a> 	</div>
+<input type="hidden" id="sessionId" value="" />
+<input type="hidden" id="serialId" value="a1b14bb02da9c53f66b390f0e537fd12_1d662c4cbf7547b9a0dda27e76b1fec7" />
+<input type="hidden" id="code" value="22" />
+<input type="hidden" id="sign" value="cef19edb1330150586eb83e5f7f61f63" />
+<input type="hidden" id="url" value="http://gz.58.com/ershoufang/" />
+<input type="hidden" id="namespace" value="ershoufanglistphp" />
+<input type="hidden" id="ip" value="" />
+</body>
+<script type="text/javascript"
+	src="//j1.58cdn.com.cn/resource/xxzl/captcha/js/isd_captcha_v20180726170031.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	//统计pv
+	pv();
+	
+	var namespace = $("#namespace").val();
+	var uuid = $("#uuid").val();
+	var url = $("#url").val();
+	var verify_code = $("#verify_code").val();
+	var ip = $("#ip").val();
+	var serialId = $("#serialId").val();
+	var code = $("#code").val();
+	var sign =$("#sign").val();
+	alert(sign);
+	respMessage = $.ajax({
+		url : "/firewall/codev2/getsession.do?"+new Date().getTime(),
+		data :{serialId:serialId,code:code,sign:sign},
+		type : "POST",
+		async : true,
+		success : function(results) {
+			var parsedJson = jQuery.parseJSON(results);
+			alert(parsedJson);
+			if (parsedJson.code === 0 && parsedJson.data != null) {
+				var captcha = ISDCaptcha({
+					'element' : 'ISDCaptcha',
+					'width' :parsedJson.data.width ,//宽度
+					'type' : parsedJson.data.level,//验证码级别
+					'showType'   : 'win', //  ['embed', 'trigger', 'win']//如果不传此值，默认为嵌入式.embed：嵌入式.trigger：触发式.win:弹出式
+					'sessionId' : parsedJson.data.sessionId,
+					'targetElm':'btnSubmit',//只对弹出式有效,如果是根据后端策略确定是否为弹出时
+					//'winAutoShow':true,//弹出式时添加此属性会自动弹出,默认为false,不自动弹出
+					'successCallback' : function successCallback(data) {
+					    alert(1);
+						respMessage = $.ajax({
+							url : "checkcode.do",
+							data : {
+								namespace : namespace,
+								sessionId : parsedJson.data.sessionId,
+								url : url,
+								successToken : data.successToken,
+								uuid:uuid,
+								serialId:serialId
+							},
+							type : "POST",
+							async : true,
+							success : function(results) {
+								var parsedJson = jQuery.parseJSON(results);
+								if (parsedJson.code === 0) {
+									var redLocation = parsedJson.msg;
+									if(redLocation.indexOf("http://")==-1 && redLocation.indexOf("https://")==-1){
+										redLocation = "http://"+redLocation;
+									}
+									window.location.href = redLocation;
+								} else {
+									$("#errmsg").html(parsedJson.msg);
+									
+								}
+							}
+						});
+					},
+					'failCallback' : function failCallback(data) {
+						alert(data.responseId);
+					}
+				})
+				captcha.init();
+			} else {
+				$("#errmsg").html(parsedJson.msg);
+				
+			}
+		}
+	});
+	
+	function pv () {  
+	    var params = {};  
+	    //Document对象数据  
+	    if(document) {  
+	        params.domain = document.domain || '';   
+	        params.url = document.URL || '';   
+	        params.title = document.title || '';   
+	        params.referrer = document.referrer || '';   
+	    }     
+	    //Window对象数据  
+	    if(window && window.screen) {  
+	        params.sh = window.screen.height || 0;  
+	        params.sw = window.screen.width || 0;  
+	        params.cd = window.screen.colorDepth || 0;  
+	    }     
+	    //navigator对象数据  
+	    if(navigator) {  
+	        params.lang = navigator.language || '';   
+	    }     
+	   
+	    // 其他参数  
+	    var date = new Date();  
+	    params.ltime = date.getTime() / 1000;  
+	    //拼接参数串  
+	    var args = '';   
+	    for(var i in params) {  
+	        if(args != '') {  
+	            args += '&';  
+	        }     
+	        args += i + '=' + encodeURIComponent(params[i]);  
+	    }     
+	   
+	    //通过Image对象请求后端脚本  
+	    var img = new Image(1, 1);   
+	    img.src = '/fwdata/load.gif?' + args;  
+	}
+});
+
+</script>
+</html>
