@@ -1,7 +1,7 @@
+import aiohttp
 import csv
 import json
 import os
-
 import gevent
 import pandas as pd
 import random
@@ -9,7 +9,6 @@ import re
 import time
 from multiprocessing.pool import Pool
 from urllib.parse import quote
-
 import requests
 from lxml import etree
 import demjson
@@ -84,14 +83,6 @@ def get_mapData(res, item):
     del coordinates['is_approximate']
     item.update(bounding_box)
     item.update(coordinates)
-    # area_info = res.text[res.text.find('ZPG.mapData'):res.text.find('ZPG.poiMapData')]
-    # bounding_box = area_info[area_info.find('"bounding_box"') + len('"bounding_box":'):area_info.find(
-    #     '"coordinates"')].strip().strip(',')
-    # print(bounding_box)
-    # coordinates = area_info[
-    #               area_info.find('"coordinates"') + len('"coordinates":'):area_info.find('"pin"')].strip().strip(',')
-    # bounding_box = json.loads(bounding_box)
-    # coordinates = json.loads(coordinates)
     address_info = res.text[
                    res.text.find('ZPG.trackData.taxonomy') + len('ZPG.trackData.taxonomy = '):res.text.find(
                        'ZPG.trackData.taxonomy.activity')].strip().strip(';')
@@ -133,17 +124,9 @@ def parse(res, bigAddress, id):
         market_stats = ''.join(detail_tree.xpath("//span[@class='dp-market-stats__price']//text()"))
         descrition = list(filter(lambda t: t != '', map(lambda x: x.strip(), detail_tree.xpath(
             "//section[@class='dp-features']/ul[@class='dp-features__list ui-list-bullets']//text()"))))
-        # if market_stats=='':
-        #     print('重新请求',market_stats,descrition_info)
-        #     parse(requests.get(detail_url), detail_url)
-        # else:
         price = ''.join(list(filter(lambda t: t != '', map(lambda x: x.strip(), detail_tree.xpath(
             "//div[@class='dp-sidebar-wrapper']//div[@class='ui-pricing']/p[@class='ui-pricing__main-price']//text()")))))
         price = ''.join(re.findall("\d+\.?\d*", price))
-        # property_info_Ele = detail_tree.xpath(
-        #     "//ul[@class='dp-features__list ui-list-icons']//text()")
-        # features_Ele = filter(lambda t: t != '', map(lambda x: x.strip(), property_info_Ele))
-        # get_base(features_Ele,item)
         detect(descrition, item)
         descrition = ','.join(descrition)
         price_history_date = ''.join(detail_tree.xpath("//span[@class='dp-price-history__item-date']//text()"))
@@ -153,9 +136,6 @@ def parse(res, bigAddress, id):
         get_distance(distance, item)
         market_stats = ''.join(re.findall("\d+\.?\d*", market_stats))
 
-        # address = ','.join(list(filter(lambda t: t != '', map(lambda x: x.strip(), detail_tree.xpath(
-        #     "//h2[@class='ui-prop-summary__address']/text()")))))
-
         title = ''.join(list(filter(lambda t: t != '', map(lambda x: x.strip(), detail_tree.xpath(
             "//h1[@class='ui-prop-summary__title ui-title-subgroup']/text()")))))
         get_agent(detail_tree, item)
@@ -163,10 +143,6 @@ def parse(res, bigAddress, id):
             item['has_flat_studio'] = 1
         if 'house' in title:
             item['has_house'] = 1
-        # area_name=res.text[res.text.find('area_name')+len('area_name:'):res.text.find('beds_max')]
-        # streetAddress=res.text[res.text.find('streetAddress')+len('streetAddress'):res.text.find('postalCode')-1]
-        # postcode=res.text[res.text.find('postalCode')+len('postalCode'):res.text.find(')')]
-        # town=res.text[res.text.find('post_town_name')+len('post_town_name'):res.text.find('postal_area')]
         get_mapData(res, item)
 
         item['price'] = price
@@ -181,21 +157,23 @@ def parse(res, bigAddress, id):
         print(item)
         return item
     except Exception as e:
-        write_error(id)
+        write_error(id + bigAddress)
         print('解析错误', e)
+
+
+"""50,26...49,14,48,18...43,20...51.23..46,32"""
 
 
 def get_detail_info(idList, bigAddress, page, pages, addressNumber):
     data_list = []
     greenlets = [gevent.spawn(openlink, 'https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
-                              'id: %s\%s page: %s\%s address: %s\%s(%s)' % (
+                              'id: %s\%s  page: %s\%s  address: %s\%s(%s)' % (
                                   idList.index(id) + 1, len(idList), page, pages, addressNumber, len(address_list),
                                   bigAddress)) for id in idList]
     gevent.joinall(greenlets)
     response_list = [a.value for a in greenlets]
     for detail_res in response_list:
         id = ''.join(re.findall("\d+\.?\d*", detail_res.url))
-        # detail_res = openlink(detail_url, headers)
         data_list.append(parse(detail_res, bigAddress, id))
     save_data(data_list, bigAddress)
 
@@ -219,7 +197,6 @@ def save_data(data_list, bigAddress):
 
 
 def crawl_main(bigAddress):
-    # address = 'Bexley (London Borough), London'
     try:
         addressNumber = address_list.index(bigAddress) + 1
         page = '1'
@@ -238,21 +215,21 @@ def crawl_main(bigAddress):
         gevent.joinall(greenlets)
         response_list = [a.value for a in greenlets]
         for rommList_res in response_list:
-            # list_url=res.url+"&pn=%s"%str(page)
-            # rommList_res = openlink(list_url, headers)
             tree = etree.HTML(rommList_res.text)
+            page = re.findall("\d+\.?\d*", rommList_res.url)[-1]
             idList = tree.xpath("//*[@class='srp clearfix   ']/@data-listing-id")
             get_detail_info(idList, bigAddress, page, pages, addressNumber)
+
     except Exception as e:
         write_error(str(bigAddress))
         print(e)
 
 
-def openlink(url, headers, info):
+async def openlink(url, headers, info):
     """
     """
     maxTryNum = 15
-    use_proxy = True
+    use_proxy = False
     use_delay = False
     for tries in range(maxTryNum):
         if use_delay:
@@ -260,14 +237,18 @@ def openlink(url, headers, info):
             print('延迟%s秒' % (str(sleep_time)))
             time.sleep(sleep_time)
         try:
+            
+
             if use_proxy:
                 proxy = get_proxy()
                 print(info, '爬取 %s,使用代理 %s' % (url, proxy))
                 response = requests.get(url, headers=headers, proxies={'http': proxy})
+                print('下载成功', response.url)
                 return response
             else:
                 print(info, '爬取 %s' % url)
                 response = requests.get(url, headers=headers)
+                print('下载成功', response.url)
                 return response
         except:
             if tries < (maxTryNum - 1):
@@ -295,7 +276,7 @@ def create_data_dir(data_dir):
 
 def write_error(info):
     with open('error', 'a') as f:
-        f.write(str(info))
+        f.write(str(info) + '\n')
 
 
 if __name__ == '__main__':
@@ -313,7 +294,6 @@ if __name__ == '__main__':
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3423.2 Safari/537.36',
         'X-Requested-With': 'XMLHttpRequest',
     }
-    '45329573'
     create_data_dir(data_csv_dir)
     create_data_dir(data_xlsx_dir)
     address_list = [
