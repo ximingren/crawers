@@ -2,6 +2,8 @@ import aiohttp
 import csv
 import json
 import os
+
+import asyncio
 import gevent
 import pandas as pd
 import random
@@ -157,7 +159,7 @@ def parse(res, bigAddress, id):
         print(item)
         return item
     except Exception as e:
-        write_error(id + bigAddress)
+        write_error(id + bigAddress+'\n')
         print('解析错误', e)
 
 
@@ -166,12 +168,19 @@ def parse(res, bigAddress, id):
 
 def get_detail_info(idList, bigAddress, page, pages, addressNumber):
     data_list = []
-    greenlets = [gevent.spawn(openlink, 'https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
+    # greenlets = [gevent.spawn(openlink, 'https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
+    #                           'id: %s\%s  page: %s\%s  address: %s\%s(%s)' % (
+    #                               idList.index(id) + 1, len(idList), page, pages, addressNumber, len(address_list),
+    #                               bigAddress)) for id in idList]
+    # gevent.joinall(greenlets)
+    # response_list = [a.value for a in greenlets]
+
+    tasks=[asyncio.ensure_future(openlink('https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
                               'id: %s\%s  page: %s\%s  address: %s\%s(%s)' % (
                                   idList.index(id) + 1, len(idList), page, pages, addressNumber, len(address_list),
-                                  bigAddress)) for id in idList]
-    gevent.joinall(greenlets)
-    response_list = [a.value for a in greenlets]
+                                  bigAddress))) for id in idList]
+    loop=asyncio.get_event_loop()
+    response_list=loop.run_until_complete(tasks)
     for detail_res in response_list:
         id = ''.join(re.findall("\d+\.?\d*", detail_res.url))
         data_list.append(parse(detail_res, bigAddress, id))
@@ -191,6 +200,7 @@ def save_data(data_list, bigAddress):
             for data in data_list:
                 writer.writerow(data)
     except Exception as e:
+        write_error(data_list)
         print('保存数据错误', e)
     else:
         print("添加数据成功,地名为%s" % bigAddress)
@@ -203,25 +213,33 @@ def crawl_main(bigAddress):
         url = 'https://www.zoopla.co.uk/search/?q=%s&geo_autocomplete_identifier=&price_min=&price_max=&property_type=&beds_min=&category=residential&price_frequency=per_month&furnished_state=&radius=&added=&results_sort=newest_listings&keywords=&new_homes=&retirement_homes=true&shared_ownership=&include_auctions=true&include_sold=&include_shared_accommodation=false&include_rented=true&search_source=to-rent&section=to-rent&view_type=list'
         info = 'address: %s\%s(%s)' % (addressNumber, len(address_list), bigAddress)
         res = openlink(url % (quote(bigAddress)), headers, info)
-        tree = etree.HTML(res.text)
+        loop = asyncio.get_event_loop()
+        res = loop.run_until_complete(res)
+        tree = etree.HTML(res.result().text)
         idList = tree.xpath("//*[@class='srp clearfix   ']/@data-listing-id")
         pageList = tree.xpath("//div[@class='paginate bg-muted']/a/text()")
         pages = int(pageList[-2])
-        get_detail_info(idList, bigAddress, page, pages, addressNumber)
-        greenlets = [gevent.spawn(openlink, res.url + "&pn=%s" % str(page), headers,
-                                  'page: %s\%s  address: %s\%s(%s)' % (
-                                      page, pages, addressNumber, len(address_list), bigAddress)) for page in
-                     range(2, pages)]
-        gevent.joinall(greenlets)
-        response_list = [a.value for a in greenlets]
+        # get_detail_info(idList, bigAddress, page, pages, addressNumber)
+        # greenlets = [gevent.spawn(openlink, res.url + "&pn=%s" % str(page), headers,
+        #                           'page: %s\%s  address: %s\%s(%s)' % (
+        #                               page, pages, addressNumber, len(address_list), bigAddress)) for page in
+        #              range(2, pages)]
+        # gevent.joinall(greenlets)
+        # response_list = [a.value for a in greenlets]
+
+        tasks = [asyncio.ensure_future(openlink(res.url + "&pn=%s" % str(page), headers,
+                                               'page: %s\%s  address: %s\%s(%s)' % (
+                                                   page, pages, addressNumber, len(address_list), bigAddress))) for page
+                in
+                range(2, pages)]
+        response_list=loop.run_until_complete(asyncio.wait(tasks))
         for rommList_res in response_list:
             tree = etree.HTML(rommList_res.text)
             page = re.findall("\d+\.?\d*", rommList_res.url)[-1]
             idList = tree.xpath("//*[@class='srp clearfix   ']/@data-listing-id")
             get_detail_info(idList, bigAddress, page, pages, addressNumber)
-
+        print(bigAddress,'爬取完成')
     except Exception as e:
-        write_error(str(bigAddress))
         print(e)
 
 
@@ -229,7 +247,7 @@ async def openlink(url, headers, info):
     """
     """
     maxTryNum = 15
-    use_proxy = False
+    use_proxy = True
     use_delay = False
     for tries in range(maxTryNum):
         if use_delay:
@@ -237,20 +255,23 @@ async def openlink(url, headers, info):
             print('延迟%s秒' % (str(sleep_time)))
             time.sleep(sleep_time)
         try:
-            
-
             if use_proxy:
                 proxy = get_proxy()
-                print(info, '爬取 %s,使用代理 %s' % (url, proxy))
-                response = requests.get(url, headers=headers, proxies={'http': proxy})
-                print('下载成功', response.url)
-                return response
+                async with aiohttp.ClientSession() as session:
+                    print(info, '爬取 %s,使用代理 %s' % (url, proxy))
+                    async with session.request('GET',url, headers=headers,proxy=proxy) as response:
+                        result = await response.text()
+                        print('下载成功', response.url)
+                        return result
             else:
-                print(info, '爬取 %s' % url)
-                response = requests.get(url, headers=headers)
-                print('下载成功', response.url)
-                return response
-        except:
+                async with aiohttp.ClientSession() as session:
+                    print(info, '爬取 %s' % url)
+                    async with session.get(url, headers=headers) as response:
+                        result = await  response.text()
+                        print('下载成功', response.url)
+                        return result
+        except Exception as e:
+            print(e)
             if tries < (maxTryNum - 1):
                 continue
             else:
@@ -281,7 +302,7 @@ def write_error(info):
 
 if __name__ == '__main__':
     concurrency_num = 10
-    data_csv_dir = 'csv'
+    data_csv_dir = 'csv11'
     data_xlsx_dir = 'xlsx'
     headers = {  # User-Agent需要根据每个人的电脑来修改，每个人的信息是不同的
         'Accept': '*/*',
