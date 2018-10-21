@@ -1,3 +1,5 @@
+from queue import Queue
+
 import aiohttp
 import csv
 import json
@@ -5,12 +7,15 @@ import os
 
 import asyncio
 import gevent
+import grequests
 import pandas as pd
 import random
 import re
 import time
 from multiprocessing.pool import Pool
 from urllib.parse import quote
+
+import pymongo
 import requests
 from lxml import etree
 import demjson
@@ -18,7 +23,10 @@ import demjson
 
 # TODO 协程
 # TODO 过滤重复请求
-# TODO 直接存为excel
+# TODO 直接存为xlsx
+# TODO 程序的暂停
+# TODO 解决断网后停止爬取
+# TODO 实现一个计数器
 
 def get_base(features_Ele, item):
     for i in features_Ele:
@@ -159,31 +167,31 @@ def parse(res, bigAddress, id):
         print(item)
         return item
     except Exception as e:
-        write_error(id + bigAddress+'\n')
+        write_error(id + bigAddress)
         print('解析错误', e)
 
 
-"""50,26...49,14,48,18...43,20...51.23..46,32"""
+def save_database(data_list):
+    cli = pymongo.MongoClient('localhost', 27017)
+    db = cli['zoopla']
+    try:
+        for data in data_list:
+            db['zoopla'].update({'id': data['id']}, {'$set': data}, True)
+    except Exception as e:
+        print('保存数据错误到数据库')
+    else:
+        print('保存数据成功到数据库')
 
 
 def get_detail_info(idList, bigAddress, page, pages, addressNumber):
     data_list = []
-    # greenlets = [gevent.spawn(openlink, 'https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
-    #                           'id: %s\%s  page: %s\%s  address: %s\%s(%s)' % (
-    #                               idList.index(id) + 1, len(idList), page, pages, addressNumber, len(address_list),
-    #                               bigAddress)) for id in idList]
-    # gevent.joinall(greenlets)
-    # response_list = [a.value for a in greenlets]
-
-    tasks=[asyncio.ensure_future(openlink('https://www.zoopla.co.uk/to-rent/details/%s' % id, headers,
-                              'id: %s\%s  page: %s\%s  address: %s\%s(%s)' % (
-                                  idList.index(id) + 1, len(idList), page, pages, addressNumber, len(address_list),
-                                  bigAddress))) for id in idList]
-    loop=asyncio.get_event_loop()
-    response_list=loop.run_until_complete(tasks)
+    for id in idList:
+        request_urls.put('https://www.zoopla.co.uk/to-rent/details/%s' % id)
+    response_list = con_openlink(request_urls, headers)
     for detail_res in response_list:
         id = ''.join(re.findall("\d+\.?\d*", detail_res.url))
         data_list.append(parse(detail_res, bigAddress, id))
+    # save_database(data_list)
     save_data(data_list, bigAddress)
 
 
@@ -212,42 +220,65 @@ def crawl_main(bigAddress):
         page = '1'
         url = 'https://www.zoopla.co.uk/search/?q=%s&geo_autocomplete_identifier=&price_min=&price_max=&property_type=&beds_min=&category=residential&price_frequency=per_month&furnished_state=&radius=&added=&results_sort=newest_listings&keywords=&new_homes=&retirement_homes=true&shared_ownership=&include_auctions=true&include_sold=&include_shared_accommodation=false&include_rented=true&search_source=to-rent&section=to-rent&view_type=list'
         info = 'address: %s\%s(%s)' % (addressNumber, len(address_list), bigAddress)
-        res = openlink(url % (quote(bigAddress)), headers, info)
-        loop = asyncio.get_event_loop()
-        res = loop.run_until_complete(res)
-        tree = etree.HTML(res.result().text)
+        print(info + "准备请求 " + url)
+        request_urls.put(url % (quote(bigAddress)))
+        res=next(con_openlink(request_urls,headers))
+        tree = etree.HTML(res.text)
         idList = tree.xpath("//*[@class='srp clearfix   ']/@data-listing-id")
         pageList = tree.xpath("//div[@class='paginate bg-muted']/a/text()")
         pages = int(pageList[-2])
-        # get_detail_info(idList, bigAddress, page, pages, addressNumber)
-        # greenlets = [gevent.spawn(openlink, res.url + "&pn=%s" % str(page), headers,
-        #                           'page: %s\%s  address: %s\%s(%s)' % (
-        #                               page, pages, addressNumber, len(address_list), bigAddress)) for page in
-        #              range(2, pages)]
-        # gevent.joinall(greenlets)
-        # response_list = [a.value for a in greenlets]
-
-        tasks = [asyncio.ensure_future(openlink(res.url + "&pn=%s" % str(page), headers,
-                                               'page: %s\%s  address: %s\%s(%s)' % (
-                                                   page, pages, addressNumber, len(address_list), bigAddress))) for page
-                in
-                range(2, pages)]
-        response_list=loop.run_until_complete(asyncio.wait(tasks))
+        get_detail_info(idList, bigAddress, page, pages, addressNumber)
+        for page in range(2,pages):
+            request_urls.put(res.url + "&pn=%s" % str(page))
+        response_list = con_openlink(request_urls, headers)
         for rommList_res in response_list:
             tree = etree.HTML(rommList_res.text)
             page = re.findall("\d+\.?\d*", rommList_res.url)[-1]
             idList = tree.xpath("//*[@class='srp clearfix   ']/@data-listing-id")
             get_detail_info(idList, bigAddress, page, pages, addressNumber)
-        print(bigAddress,'爬取完成')
+        print(bigAddress, '爬取完成')
     except Exception as e:
         print(e)
+
+
+def get_tasks(request_urls, headers):
+    use_proxy = True
+    if use_proxy:
+        tasks = []
+        while not request_urls.empty():
+            proxy = get_proxy()
+            url=request_urls.get()
+            print('使用代理%s 准备请求 %s' % (proxy,url ))
+            tasks.append(grequests.get(url, headers=headers, proxies={'http': proxy}))
+        return tasks
+    else:
+        tasks = []
+        while not request_urls.empty():
+            url=request_urls.get()
+            print('准备请求 %s' % (url))
+            tasks.append(grequests.get(url, headers=headers))
+        return tasks
+
+def callback(request,exception):
+    print('下载失败 %s'%request.url)
+    # print('请放慢速度,重新下载 %s'%request.url)
+
+def con_openlink(request_urls, headers):
+    tasks = get_tasks(request_urls, headers)
+    res = grequests.imap(tasks, size=concurrency_num,exception_handler=callback)
+    for a in res:
+        if a.status_code==200:
+            print('下载成功 %s' % a.url)
+            yield a
+        else:
+            print('下载失败',a)
 
 
 async def openlink(url, headers, info):
     """
     """
     maxTryNum = 15
-    use_proxy = True
+    use_proxy = False
     use_delay = False
     for tries in range(maxTryNum):
         if use_delay:
@@ -259,7 +290,7 @@ async def openlink(url, headers, info):
                 proxy = get_proxy()
                 async with aiohttp.ClientSession() as session:
                     print(info, '爬取 %s,使用代理 %s' % (url, proxy))
-                    async with session.request('GET',url, headers=headers,proxy=proxy) as response:
+                    async with session.request('GET', url, headers=headers, proxy=proxy) as response:
                         result = await response.text()
                         print('下载成功', response.url)
                         return result
@@ -296,14 +327,14 @@ def create_data_dir(data_dir):
 
 
 def write_error(info):
-    with open('error', 'a') as f:
+    with open('error1', 'a') as f:
         f.write(str(info) + '\n')
 
 
 if __name__ == '__main__':
-    concurrency_num = 10
-    data_csv_dir = 'csv11'
-    data_xlsx_dir = 'xlsx'
+    concurrency_num=10
+    data_csv_dir = 'csv56'
+    data_xlsx_dir = 'xlsx56'
     headers = {  # User-Agent需要根据每个人的电脑来修改，每个人的信息是不同的
         'Accept': '*/*',
         'Accept-Encoding': 'br',
@@ -338,7 +369,7 @@ if __name__ == '__main__':
         "Hounslow (London Borough), London",
         "Islington (London Borough), London",
         "Kensington and Chelsea (Royal Borough), London",
-        "Kingston upon Thames (Royal Borough), London ",
+        "Kingston upon Thame1s (Royal Borough), London ",
         "Lambeth (London Borough), London ",
         "Lewisham (London Borough), London ",
         "Merton (London Borough), London ",
@@ -359,9 +390,11 @@ if __name__ == '__main__':
              'area_name', 'zindex', 'is_retirement_home', 'room_status', 'price_history_date', 'agentName', 'outcode',
              'num_beds', 'brand_name', 'id', 'branch_name', 'has_epc', 'post_town_name', 'room_condition',
              'subway_distance', 'postal_area', 'display_address', 'latitude_max', 'agentPhone', 'room_category']
-    p = Pool(len(address_list))
-    for bigAddress in address_list:
-        p.apply_async(crawl_main, args={bigAddress, })
-    p.close()
-    p.join()
+    request_urls=Queue()
+    crawl_main(address_list[0])
+    # p = Pool(len(address_list))
+    # for bigAddress in address_list:
+    #     p.apply_async(crawl_main, args={bigAddress, })
+    # p.close()
+    # p.join()
     csv_to_excel()
