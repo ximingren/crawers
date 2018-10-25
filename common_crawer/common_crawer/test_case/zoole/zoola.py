@@ -1,12 +1,8 @@
 from queue import Queue
-
 import aiohttp
 import csv
 import json
 import os
-
-import asyncio
-import gevent
 import grequests
 import pandas as pd
 import random
@@ -14,19 +10,13 @@ import re
 import time
 from multiprocessing.pool import Pool
 from urllib.parse import quote
-
 import pymongo
 import requests
 from lxml import etree
 import demjson
 
 
-# TODO 协程
-# TODO 过滤重复请求
-# TODO 直接存为xlsx
-# TODO 程序的暂停
-# TODO 解决断网后停止爬取
-# TODO 实现一个计数器
+
 
 def get_base(features_Ele, item):
     for i in features_Ele:
@@ -176,7 +166,7 @@ def save_database(data_list):
     db = cli['zoopla']
     try:
         for data in data_list:
-            db['zoopla'].update({'id': data['id']}, {'$set': data}, True)
+            db['room'].update({'id': data['id']}, {'$set': data}, True)
     except Exception as e:
         print('保存数据错误到数据库')
     else:
@@ -191,7 +181,7 @@ def get_detail_info(idList, bigAddress, page, pages, addressNumber):
     for detail_res in response_list:
         id = ''.join(re.findall("\d+\.?\d*", detail_res.url))
         data_list.append(parse(detail_res, bigAddress, id))
-    # save_database(data_list)
+    save_database(data_list)
     save_data(data_list, bigAddress)
 
 
@@ -220,7 +210,6 @@ def crawl_main(bigAddress):
         page = '1'
         url = 'https://www.zoopla.co.uk/search/?q=%s&geo_autocomplete_identifier=&price_min=&price_max=&property_type=&beds_min=&category=residential&price_frequency=per_month&furnished_state=&radius=&added=&results_sort=newest_listings&keywords=&new_homes=&retirement_homes=true&shared_ownership=&include_auctions=true&include_sold=&include_shared_accommodation=false&include_rented=true&search_source=to-rent&section=to-rent&view_type=list'
         info = 'address: %s\%s(%s)' % (addressNumber, len(address_list), bigAddress)
-        print(info + "准备请求 " + url)
         request_urls.put(url % (quote(bigAddress)))
         res=next(con_openlink(request_urls,headers))
         tree = etree.HTML(res.text)
@@ -261,7 +250,8 @@ def get_tasks(request_urls, headers):
 
 def callback(request,exception):
     print('下载失败 %s'%request.url)
-    # print('请放慢速度,重新下载 %s'%request.url)
+    print('重新下载 %s'%request.url)
+    request_urls.put(request.url)
 
 def con_openlink(request_urls, headers):
     tasks = get_tasks(request_urls, headers)
@@ -332,9 +322,9 @@ def write_error(info):
 
 
 if __name__ == '__main__':
-    concurrency_num=10
-    data_csv_dir = 'csv56'
-    data_xlsx_dir = 'xlsx56'
+    concurrency_num=2
+    data_csv_dir = 'csv'
+    data_xlsx_dir = 'xlsx'
     headers = {  # User-Agent需要根据每个人的电脑来修改，每个人的信息是不同的
         'Accept': '*/*',
         'Accept-Encoding': 'br',
@@ -391,10 +381,9 @@ if __name__ == '__main__':
              'num_beds', 'brand_name', 'id', 'branch_name', 'has_epc', 'post_town_name', 'room_condition',
              'subway_distance', 'postal_area', 'display_address', 'latitude_max', 'agentPhone', 'room_category']
     request_urls=Queue()
-    crawl_main(address_list[0])
-    # p = Pool(len(address_list))
-    # for bigAddress in address_list:
-    #     p.apply_async(crawl_main, args={bigAddress, })
-    # p.close()
-    # p.join()
+    p = Pool(len(address_list))
+    for bigAddress in address_list:
+        p.apply_async(crawl_main, args={bigAddress, })
+    p.close()
+    p.join()
     csv_to_excel()
