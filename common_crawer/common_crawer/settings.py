@@ -22,7 +22,7 @@ NEWSPIDER_MODULE = 'common_crawer.spiders'
 ROBOTSTXT_OBEY = False
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # 并发的request连接数
-CONCURRENT_REQUESTS = 1000
+CONCURRENT_REQUESTS = 300
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
@@ -30,9 +30,9 @@ CONCURRENT_REQUESTS = 1000
 # 定义下载延时
 DOWNLOAD_DELAY = 1
 # 定义下载超时
-DOWNLOAD_TIMEOUT = 13
+DOWNLOAD_TIMEOUT = 20
 # 每个并发最大的ip限制数
-CONCURRENT_REQUESTS_PER_IP = 40
+CONCURRENT_REQUESTS_PER_IP = 30
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
@@ -51,7 +51,6 @@ DEFAULT_REQUEST_HEADERS = {
     'Accept-Encoding': 'gzip, deflate, br',
     'Content-Type': 'text/html;charset=UTF-8',
     'Cache-Control': 'no-cache',
-
 }
 
 # Enable or disable spider middlewares
@@ -64,8 +63,8 @@ DOWNLOADER_MIDDLEWARES = {
     'common_crawer.middlewares.CommonCrawerSpiderMiddleware': 543,
     'common_crawer.middlewares.CommonCrawerDownloaderMiddleware': 540,
     'common_crawer.RandomHeadersMiddleware.RandomUserAgentMiddleware': 400,
-'scrapy.downloadermiddlewares.redirect.RedirectMiddleware':450,
-    'common_crawer.CommonRedirectMiddleware.CommonRedirectMiddleware':31,
+    # 'scrapy.downloadermiddlewares.redirect.RedirectMiddleware':450,
+    # 'common_crawer.CommonRedirectMiddleware.CommonRedirectMiddleware':None,
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
 }
 
@@ -78,7 +77,8 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'common_crawer.pipelines._58CrawerPipeline': 300,
+    # 'common_crawer.pipelines._58CrawerPipeline': 300,
+    'common_crawer.pipelines.ZooplaPipeline': 400
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -105,7 +105,7 @@ ITEM_PIPELINES = {
 
 # 定义MongoDB
 MONGO_URI = "mongodb://localhost"
-MONGO_DATABASE = "ebotapp"
+MONGO_DATABASE = "maoyan"
 
 # 定义日志
 LOG_LEVEL = "INFO"
@@ -125,6 +125,10 @@ MAIL_PASS="qq13516654182"
 
 USE_PROXY=True
 
+# FEED_FORMAT= 'csv'
+# FEED_URI='file://export.csv'
+
+retry_times=5
 # 配置分布式
 # DUPEFILTER_CLASS="scrapy_redis.duperfilter.RFPDuperFilter"
 # SCHEDULER="scrapy_redis.scheduler.Scheduler"
@@ -137,3 +141,37 @@ USE_PROXY=True
 #     'common_crawer.pipelines._58CrawerPipeline':300,
 #     'scrapy_redis.pipelines.RedisPipeline':400
 # }
+ADDRESS_LIST = [
+        "Barking and Dagenham (London Borough), London",
+        "Barnet (London Borough), London",
+        "Bexley (London Borough), London",
+        "Brent (London Borough), London ",
+        "Bromley (London Borough), London ",
+        "Camden (London Borough), London ",
+        "City of London (London Borough), London",
+        "Croydon (London Borough), London ",
+        "Ealing (London Borough), London ",
+        "Enfield (London Borough), London",
+        "Greenwich (Royal Borough), London",
+        "Hackney (London Borough), London ",
+        "Hammersmith and Fulham (London Borough), London ",
+        "Haringey (London Borough), London ",
+        "Harrow (London Borough), London ",
+        "Havering (London Borough), London ",
+        "Hillingdon (London Borough), London ",
+        "Hounslow (London Borough), London",
+        "Islington (London Borough), London",
+        "Kensington and Chelsea (Royal Borough), London",
+        "Kingston upon Thames (Royal Borough), London ",
+        "Lambeth (London Borough), London ",
+        "Lewisham (London Borough), London ",
+        "Merton (London Borough), London ",
+        "Newham (London Borough), London ",
+        "Redbridge (London Borough), London",
+        "Richmond upon Thames (London Borough), London",
+        "Southwark (London Borough), London ",
+        "Sutton (London Borough), London ",
+        "Tower Hamlets (London Borough), London",
+        "Waltham Forest (London Borough), London ",
+        "Wandsworth (London Borough), London ",
+        "Westminster (London Borough), London"]
