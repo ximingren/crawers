@@ -91,3 +91,47 @@ class Ebotapp(scrapy.Item):
     # area_distribution=scrapy.Field() #地域分布
     # gender_distribution=scrapy.Field() # 性别分布
 
+class ZooplaItem(scrapy.Item):
+    item=scrapy.Field()
+    # id=scrapy.Field()
+    # price=scrapy.Field()
+    # bedroom_num=scrapy.Field()
+    # bathroom_num=scrapy.Field()
+    # reception_room_num=scrapy.Field()
+    # furnish_condition=scrapy.Field()
+    # garden_condition=scrapy.Field()
+    # condition=scrapy.Field()
+    # price_history_date=scrapy.Field()
+    # subway_distance=scrapy.Field()
+    # school_distance=scrapy.Field()
+    # market_stats=scrapy.Field()
+    # address=scrapy.Field()
+    # title=scrapy.Field()
+    # agentName=scrapy.Field()
+    # agentAddress=scrapy.Field()
+    # agentPhone=scrapy.Field()
+    # descrition=scrapy.Field()
+    # big_address=scrapy.Field()
+
+class MaoyanItem(scrapy.Item):
+    item=scrapy.Field()
+    # id=scrapy.Field()
+    # title=scrapy.Field()
+    # category=scrapy.Field()
+    # runningTime=scrapy.Field()
+    # releaseTime=scrapy.Field()
+    # scores=scrapy.Field()
+    # score_count=scrapy.Field()
+    # rating_num=scrapy.Field()
+    # wish_count=scrapy.Field()
+    # totalBoxOffice=scrapy.Field()
+    # FirstDayBoxOffice=scrapy.Field()
+    # FirstWeekBoxOffice=scrapy.Field()
+    # predictionBoxOffice=scrapy.Field()
+    # actor_award=scrapy.Field()
+    # director_award=scrapy.Field()
+    # film_award=scrapy.Field()
+
+class MaoyanActorItem(scrapy.Item):
+    item=scrapy.Field()
+
