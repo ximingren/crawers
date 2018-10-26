@@ -30,7 +30,7 @@ class DoubanSpider(scrapy.Spider):
     }
 
     def start_requests(self):
-        for id in range(1,500000):
+        for id in range(250000,500000):
             totalData = {}
             yield Request(self.index_url % str(id),
                           meta={'id': str(id), 'info': '下载%s index' % str(id), 'totalData': totalData},

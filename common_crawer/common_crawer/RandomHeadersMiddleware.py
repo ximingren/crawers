@@ -48,6 +48,6 @@ class RandomUserAgentMiddleware(object):
     def process_request(self,request,spider):
         ua=random.choice(self.UserAgent_List)
         if ua:
-            logging.info("现在的UserAgent为:"+ua)
+            logging.debug("现在的UserAgent为:"+ua)
             request.headers['User-Agent']=ua
         request.headers['Referer']=request.url

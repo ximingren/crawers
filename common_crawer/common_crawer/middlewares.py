@@ -84,13 +84,15 @@ class CommonCrawerDownloaderMiddleware(object):
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
-        logging.info("准备请求下载%s页面" % request.url)
-        logging.info("请求参数为%s"%str(request.body.decode('utf8')))
+        if 'info' in request.meta.keys():
+            logging.info(str(request.meta['info'])+' 下载页面 '+request.url)
+        logging.debug("准备请求下载%s页面" % request.url)
+        logging.debug("请求参数为%s"%str(request.body.decode('utf8')))
         request.headers.setdefault("Referer", request.url)
         if spider.settings['USE_PROXY']:
             proxy = self.valid_proxies()
             # proxy="https://185.93.3.70:8080"
-            logging.info('使用代理%s' % proxy)
+            logging.debug('使用代理%s' % proxy)
             request.meta['proxy'] = proxy
         return None
 
@@ -101,9 +103,11 @@ class CommonCrawerDownloaderMiddleware(object):
         # - return a Request object
         # - or raise IgnoreRequest
         if response.status == 200:
-            logging.error("下载页面成功%s!!!!!!!!!!!"%response.url)
-            return response
 
+            logging.info("下载页面成功%s!!!!!!!!!!!"%response.url)
+            return response
+        else:
+            return request
     def process_exception(self, request, exception, spider):
         # Called when a download handler or a process_request()
         # (from other downloader middleware) raises an exception.

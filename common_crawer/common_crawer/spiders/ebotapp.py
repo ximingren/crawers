@@ -1,161 +1,65 @@
 # -*- coding: utf-8 -*-
 import datetime
 import json
-import logging
-import multiprocessing
-from multiprocessing.pool import Pool
-
-import requests
 import scrapy
-from scrapy import Request, FormRequest
-
-# BoxOfficePoint：点映票房
-# BoxOfficeToTal：累积票房
-# BoxOfficeWeekEnd:首周末票房
-# BoxOfficeFirstWeek：首周日票房
-# BoxOfficeFirstDay:首映日票房
-# ReleaseDate:上映时间
+from scrapy import FormRequest
 from common_crawer.items import Ebotapp
-from scrapy.utils.log import logger
 
 
-# 7-3000
-# 3000-6000
-# 6000-10000
-# 10000-11000 over
-
-# 1000-15000
-# 15000-40000
-# 10000-200000好像是没数据的
-# 3,4,5,600000字段完成
-# 600000 放弃
-# 0-300000完成
 class EbotappSpider(scrapy.Spider):
     name = 'ebotapp'
-
-    # start_urls = ['http://ebotapp/']
-    def openlink(self, url, data):
-        """
-        urlopen error 10060错误
-        :param url:  请求的网址
-        :param headers: 报文头部信息
-        :return: 服务器响应
-        """
-        maxTryNum = 15
-        for tries in range(maxTryNum):
-            try:
-                logging.info("请求%s，%s" % (url, data))
-                req = requests.post(url, data=data, timeout=13)
-                return req
-            except:
-                if tries < (maxTryNum - 1):
-                    continue
-                else:
-                    logger.info("尝试%d 次连接网址%s失败!" % (maxTryNum, url))
 
     def start_requests(self):
         """
         开始请求，以公司id为起始点.循环迭代
         :return:
         """
-        for id in range(300000, 682000):
-            page = 1
-            pageSize = 30
+        for id in range(660000, 660001):
             params = {'EnMovieID': str(id)}
             meta = {'EnMovieID': str(id), 'film_data': {}}
             yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByBaseInfo', meta=meta,
                               formdata=params, callback=self.main_parse)
 
     def main_parse(self, response):
+        """
+        解析主函数
+        :param response:
+        :return:
+        """
         EnMovieID = response.meta['EnMovieID']
         film_data = response.meta['film_data']
-        # EnMovieID = film['EnMovieID']
-        # movieName = film['MovieName']
-        # time.sleep(4)
-        EnMovieID = str(EnMovieID)
         self.get_base(film_data, response)  # 票房汇总信息
-        try:
-            condition = film_data['ReleaseDate']
-        except Exception as e:
-            print(EnMovieID, e)
-        else:
-            # self.get_people(EnMovieID)  # 剧组人员
-            # self.get_company(EnMovieID)  # 相关公司
-
-            releaseDate = ''
-            try:
-                if film_data['ReleaseDate'] != '':
-                    try:
-                        if '年' in film_data['ReleaseDate'] and '月' in film_data['ReleaseDate'] and '日' in \
-                                film_data['ReleaseDate']:
-                            releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年%m月%d日")
-                        if '年' in film_data['ReleaseDate'] and '月' in film_data['ReleaseDate']:
-                            releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年%m月")
-                        if '年' in film_data['ReleaseDate']:
-                            releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年")
-                        else:
-                            releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y-%m-%d")
-                    except Exception as e:
-                        print(e)
-                    else:
-                        if releaseDate < datetime.datetime.now():
-                            sDate = releaseDate - datetime.timedelta(days=1)
-                            eDate = releaseDate + datetime.timedelta(days=9)
-                            # self.get_index(EnMovieID, sDate, eDate)  # 影响指数
-                            self.get_distribute(EnMovieID, sDate, eDate, film_data['MovieID'],
-                                                            film_data)  # 票房分布
-                            # self.get_boxOffice(EnMovieID, sDate, eDate, film_data['MovieID'])
-                            # self.get_audience(EnMovieID)  # 观众
-                            # self.get_rowPrice(EnMovieID, sDate, eDate, film_data['MovieID'])  # 排片
-                self.clear_data(film_data)
-                item = Ebotapp()
-                item['item'] = film_data
-                yield item
-            except Exception as e:
-                print(EnMovieID, e)
-
-    def parse(self, response):
-        pageSize = 30
-        # id=response.meta['companyid']
-        # film_list = json.loads(response.text)  # 电影列表
-        # totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
-        # if totalCounts > 0:
-        #     totalPage = int(film_list['Data']['Table2'][0]['TotalPage'])  # 总页数
-        #     # self.parse_main(film_list)
-        #     for page in range(1, totalPage):
-        #         response = self.openlink('http://ebotapp.entgroup.cn/API/Information/GetCompanyWorks',
-        #                                  data={'companyid': str(id), 'pageIndex': str(page), 'pageSize': str(pageSize)})
-        #         film_list = json.loads(response.text)  # 电影列表
-        #         totalCounts = int(film_list['Data']['Table2'][0]['TotalCounts'])  # 总电影数
-        #         for film in film_list['Data']['Table1']:
-
-        # p=Pool(10)
-        # need_id=range(300000,682000)
-        # length=int(len(need_id)/10)
-        # for i in range(10):
-        #     EnMovieID_list=need_id[(length)*i:(length)*(i+1)]
-        #     p.apply_async(self.main_parse,args={EnMovieID_list,})
-        # p.close()
-        # p.join()
+        meta = {'EnMovieID': EnMovieID, 'film_data': film_data}
+        yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',
+                              meta=meta, formdata={'EnMovieID': EnMovieID}, callback=self.get_people) #爬取演员
 
     def get_base(self, film_data, response):
+        """
+        解析电影的基础信息
+        :param film_data:
+        :param response:
+        :return:
+        """
         try:
-            # base_info_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByBaseInfo',
-            #                               data={'EnMovieID': EnMovieID})
             base_info_1 = json.loads(response.text)['Data']['Table1'][0]
-
             for key, value in dict(base_info_1).items():
                 film_data[key] = value
         except Exception as e:
-            # self.write_txt(EnMovieID)
             print("解析基础信息时发生错误", e)
 
-    def get_people(self, EnMovieID):
+    def get_people(self, response):
+        """
+        解析得到演员
+        :param EnMovieID:
+        :param film_data:
+        :return:
+        """
+        film_data = response.meta['film_data']
+        EnMovieID = response.meta['EnMovieID']
         try:
-            detail_info_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',
-                                            data={'EnMovieID': EnMovieID})
+
             try:
-                detail_info = detail_info_res.json()
+                detail_info = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
@@ -168,21 +72,24 @@ class EbotappSpider(scrapy.Spider):
                     name = people['PersonnelName']
                     people_dict[PersonType].append(name)
                 film_data.update(people_dict)
-        except Exception as e:
-            self.write_txt(EnMovieID)
-            print("解析人员时发生错误", e)
 
-    def get_company(self, EnMovieID):
+        except Exception as e:
+            print("解析人员时发生错误", e)
+        finally:
+            meta = {'EnMovieID': EnMovieID, 'film_data': film_data}
+            yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',dont_filter=True,
+                              meta=meta, formdata={'EnMovieID': EnMovieID}, callback=self.get_company)  # 相关公司
+
+    def get_company(self, response):
         try:
-            relate_company_info_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByDetail',
-                                                    data={'EnMovieID': EnMovieID})
+            film_data = response.meta['film_data']
+            EnMovieID = response.meta['EnMovieID']
             try:
-                relate_company_info = relate_company_info_res.json()
+                relate_company_info = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
                 relate_company = relate_company_info['Data']['Table2']
-                print(relate_company)
                 relate_company_dict = {}
                 for company in relate_company:
                     CompanyName = company['CompanyName']
@@ -192,24 +99,52 @@ class EbotappSpider(scrapy.Spider):
                         relate_company_dict[CompanyType] = []
                     relate_company_dict[CompanyType].append(CountryName + CompanyName)
                 film_data.update(relate_company_dict)
+            finally:
+                try:
+                    if film_data['ReleaseDate'] != '':
+                        releaseDate = self.get_date(film_data)
+                        if releaseDate < datetime.datetime.now():
+                            sDate = releaseDate - datetime.timedelta(days=1)
+                            eDate = releaseDate + datetime.timedelta(days=9)
+                            meta = {'EnMovieID': EnMovieID, 'film_data': film_data, 'sDate': sDate, 'eDate': eDate}
+                            yield FormRequest(
+                                'http://ebotapp.entgroup.cn/API/DataBox/Movie/MarketingData_EffectIndex',
+                                formdata={'EnMovieID': EnMovieID, 'sDate': sDate, 'eDate': eDate}, meta=meta,
+                                callback=self.get_index)  # 影响指数
+                except Exception as e:
+                    print(EnMovieID, e)
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析相关公司时发生错误", e)
 
-    def get_audience(self, EnMovieID):
+    def get_date(self, film_data):
         try:
-            audience_info_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByAudience',
-                                              data={'EnMovieID': EnMovieID})
+            if '年' in film_data['ReleaseDate'] and '月' in film_data['ReleaseDate'] and '日' in \
+                    film_data['ReleaseDate']:
+                releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年%m月%d日")
+            elif '年' in film_data['ReleaseDate'] and '月' in film_data['ReleaseDate']:
+                releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年%m月")
+            elif '年' in film_data['ReleaseDate']:
+                releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y年")
+            else:
+                releaseDate = datetime.datetime.strptime(film_data['ReleaseDate'], "%Y-%m-%d")
+            return releaseDate
+        except Exception as e:
+            print(e)
+
+    def get_audience(self, response):
+        film_data = response.meta['film_data']
+        EnMovieID = response.meta['EnMovieID']
+        sDate = response.meta['sDate']
+        eDate = response.meta['eDate']
+        try:
             try:
-                audience_info = audience_info_res.json()
+                audience_info = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
                 gender_info = audience_info['Data']['Table1'][0]  # 性别分布
                 ManNumTGI = gender_info['ManNumTGI']
                 WoManNumTGI = gender_info['WoManNumTGI']
-
-                distribute_dict = {}
                 film_data['年龄分布'] = []
                 film_data['地域分布'] = []
                 film_data['性别分布'] = ['ManNumTGI' + ":" + str(ManNumTGI), "WoManNumTGI" + ":" + str(WoManNumTGI)]
@@ -220,15 +155,26 @@ class EbotappSpider(scrapy.Spider):
                 for area in area_info:
                     film_data['地域分布'].append(area['ProvinceName'] + ":" + str(area['Num']))
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析观众分布时发生错误", e)
+        finally:
+            meta = {'EnMovieID': EnMovieID, 'film_data': film_data, 'sDate': sDate, 'eDate': eDate}
+            yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByRowPiece',
+                              formdata={'EnMovieID': EnMovieID, 'MovieID': film_data['MovieID'],
+                                        'sDate': sDate,
+                                        'eDate': eDate,
+                                        'Index': '102,201,202,203,205,221,222,251,801,604,606',
+                                        'ServicePrice': 1}, meta=meta,
+                              callback=self.get_rowPrice)  # 排片
+            self.clear_data(film_data)
 
-    def get_index(self, EnMovieID, sDate, eDate):
+    def get_index(self, response):
+        film_data = response.meta['film_data']
+        EnMovieID = response.meta['EnMovieID']
+        sDate = response.meta['sDate']
+        eDate = response.meta['eDate']
         try:
-            effect_index_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MarketingData_EffectIndex',
-                                             data={'EnMovieID': EnMovieID, 'sDate': sDate, 'eDate': eDate})
             try:
-                effect_index = effect_index_res.json()
+                effect_index = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
@@ -244,16 +190,23 @@ class EbotappSpider(scrapy.Spider):
                 film_data['RapIndex'] = rapIndex_list  # 口碑指数
                 film_data['RenZhiIndex'] = renIndex_list  # 认知指数
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析指数时发生错误", e)
+        finally:
+            meta = {'EnMovieID': EnMovieID, 'film_data': film_data, 'sDate': sDate, 'eDate': eDate}
+            yield FormRequest(
+                'http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByTimeIntervalTOP',
+                formdata={'EnMovieID': EnMovieID, 'sDate': sDate, 'eDate': eDate,
+                          'MovieID': film_data['MovieID'], 'ServicePrice': 1}, meta=meta,
+                callback=self.get_distribute)  # 票房分布
 
-    def get_distribute(self, EnMovieID, sDate, eDate, MovieID, film_data):
+    def get_distribute(self, response):
+        film_data = response.meta['film_data']
+        EnMovieID = response.meta['EnMovieID']
+        sDate = response.meta['sDate']
+        eDate = response.meta['eDate']
         try:
-            distribute_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByTimeIntervalTOP',
-                                           data={'EnMovieID': EnMovieID, 'sDate': sDate, 'eDate': eDate,
-                                                 'MovieID': MovieID, 'ServicePrice': 1})
             try:
-                distribute = distribute_res.json()
+                distribute = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
@@ -275,23 +228,25 @@ class EbotappSpider(scrapy.Spider):
                     else:
                         film_data['票房分布-包服务费'] = None
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析票房分布时发生错误", e)
-
-    def write_txt(self, id):
-        with open('error.txt', 'a') as f:
-            f.write(str(id) + '\n')
-
-    def get_boxOffice(self, EnMovieID, sDate, eDate, MovieID, Index='102,201,202,203,205,221,222,251,801,604,606',
-                      ServicePrice=1):
-        try:
-            boxOffice_info_res = self.openlink(
+        finally:
+            meta = {'EnMovieID': EnMovieID, 'film_data': film_data, 'sDate': sDate, 'eDate': eDate}
+            yield FormRequest(
                 'http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByTimeIntervalList',
-                data={'EnMovieID': EnMovieID, 'MovieID': MovieID, 'sDate': sDate,
-                      'eDate': eDate,
-                      'Index': Index, 'ServicePrice': ServicePrice})
+                formdata={'EnMovieID': EnMovieID, 'MovieID': film_data['MovieID'], 'sDate': sDate,
+                          'eDate': eDate,
+                          'Index': '102,201,202,203,205,221,222,251,801,604,606',
+                          'ServicePrice': 1},
+                meta=meta, callback=self.get_boxOffice)
+
+    def get_boxOffice(self, response):
+        film_data = response.meta['film_data']
+        EnMovieID = response.meta['EnMovieID']
+        sDate = response.meta['sDate']
+        eDate = response.meta['eDate']
+        try:
             try:
-                boxOffice_info = boxOffice_info_res.json()
+                boxOffice_info = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
@@ -316,18 +271,18 @@ class EbotappSpider(scrapy.Spider):
                         film_data['Attendance'].append(box['InsertDate'] + ":" + str(box['Attendance']))  # 上座率
                         film_data['ServicePrice'].append(box['InsertDate'] + ":" + str(box['ServicePrice']))  # 服务费
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析票房具体信息时发生错误", e)
+        finally:
+            meta = {'EnMovieID': EnMovieID, 'film_data': film_data, 'sDate': sDate, 'eDate': eDate}
+            yield FormRequest('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByAudience',
+                              formdata={'EnMovieID': EnMovieID}, meta=meta,
+                              callback=self.get_audience)  # 观众
 
-    def get_rowPrice(self, EnMovieID, sDate, eDate, MovieID, Index='102,201,202,203,205,221,222,251,801,604,606',
-                     ServicePrice=1):
+    def get_rowPrice(self, response):
         try:
-            rowPrice_res = self.openlink('http://ebotapp.entgroup.cn/API/DataBox/Movie/MovieDataByRowPiece',
-                                         data={'EnMovieID': EnMovieID, 'MovieID': MovieID, 'sDate': sDate,
-                                               'eDate': eDate,
-                                               'Index': Index, 'ServicePrice': ServicePrice})
+            film_data = response.meta['film_data']
             try:
-                rowPrice = rowPrice_res.json()
+                rowPrice = json.loads(response.text)
             except Exception as e:
                 print(e)
             else:
@@ -348,11 +303,17 @@ class EbotappSpider(scrapy.Spider):
                     film_data['JyShowCount_list'].append(row['InsertDate'] + ":" + str(row['JyShowCount']))
                     film_data['ShowCountPercent_list'].append(row['InsertDate'] + ":" + str(row['ShowCountPercent']))
                     film_data['OfferSeatPercent_list'].append(row['InsertDate'] + ":" + str(row['OfferSeatPercent']))
+            finally:
+                pass
         except Exception as e:
-            self.write_txt(EnMovieID)
             print("解析排片时发生错误", e)
+        finally:
+            item = Ebotapp()
+            film_data = self.clear_data(film_data)
+            item['item'] = film_data
+            yield item
 
-    def clear_data(self,film_data):
+    def clear_data(self, film_data):
         for key, value in film_data.items():
             if isinstance(value, list):
                 if len(value) == 0:

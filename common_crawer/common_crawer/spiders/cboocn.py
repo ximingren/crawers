@@ -2,24 +2,20 @@
 import scrapy
 from lxml import etree
 from scrapy import Request
-
 from common_crawer.items import Cboocn
 
 
 class CboocnSpider(scrapy.Spider):
     name = 'cboocn'
 
-    # allowed_domains = ['cboocn.cn']
-    # start_urls = ['http://cboocn.cn/']
-
     def start_requests(self):
         for id in range(650000, 670000):
             yield Request('http://www.cbooo.cn/m/%s' % str(id), meta={'EnMovieID': str(id)})
 
-    def get_block_office(self,tree):
+    def get_block_office(self, tree):
         boxOffice_block = tree.xpath(
             '//div[@class="ziliaofr"]/div[@class="cont"]/p/span/text()')
-        if len(boxOffice_block)>=2:
+        if len(boxOffice_block) >= 2:
             if boxOffice_block[0] == '累计票房':
                 boxOffice_total = boxOffice_block[1][:-1]
                 return boxOffice_total, None
@@ -28,7 +24,8 @@ class CboocnSpider(scrapy.Spider):
                 now_boxOffice = boxOffice_block[1][:-1]
                 return boxOffice_total, now_boxOffice
         else:
-            return None,None
+            return None, None
+
     def get_office(self, data, style):
         if style == 1:
             hk_am_rank = []
@@ -115,7 +112,7 @@ class CboocnSpider(scrapy.Spider):
             '//div[@class="ziliaofr"]/div[@class="cont"]/h2//text()')))))
         enName = ''.join(list(filter(lambda t: t != '', map(lambda x: x.strip(), tree.xpath(
             '//div[@class="ziliaofr"]/div[@class="cont"]/p[1]//text()')))))
-        boxOffice_total,now_boxOffice=self.get_block_office(tree)
+        boxOffice_total, now_boxOffice = self.get_block_office(tree)
         genre = ''.join(list(filter(lambda t: t != '', map(lambda x: x.strip(), tree.xpath(
             '//div[@class="ziliaofr"]/div[@class="cont"]/p[3]//text()')))))
         genre = genre[genre.find("：") + 1:].strip('')
