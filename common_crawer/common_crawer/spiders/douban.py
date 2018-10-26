@@ -5,6 +5,8 @@ import re
 import requests
 import scrapy
 from lxml import etree
+
+from common_crawer.MongoQueue import MongoQueue
 from scrapy import Request
 
 from common_crawer.items import MaoyanItem
@@ -28,11 +30,25 @@ class DoubanSpider(scrapy.Spider):
         'Pragma': 'no-cache',
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3423.2 Safari/537.36',
     }
-
+    indexqueue=MongoQueue('maoyan','indexurl')
+    honorqueue=MongoQueue('maoyan','honorurl')
+    trailersqueue=MongoQueue('maoyan','trailersurl')
+    weiboqueue=MongoQueue('maoyan','weibourl')
+    wechatqueue=MongoQueue('maoyan','wechaturl')
+    baiduqueue=MongoQueue('maoyan','baiduurl')
+    celebrityqueue=MongoQueue('maoyan','celebrityurl')
     def start_requests(self):
-        for id in range(250000,500000):
-            totalData = {}
-            yield Request(self.index_url % str(id),
+        # for id in range(250000,500000):
+        #     totalData = {}
+        while True:
+            try:
+                id,url = self.indexqueue.pop()
+            except KeyError:
+                print('队列没有数据')
+                break
+            else:
+                totalData={}
+                yield Request(url,
                           meta={'id': str(id), 'info': '下载%s index' % str(id), 'totalData': totalData},
                           errback=self.errback, callback=self.parse_index)
 
@@ -81,8 +97,11 @@ class DoubanSpider(scrapy.Spider):
                     list(filter(lambda t: t != '', map(lambda x: x.strip(), FirstWeekBoxOffice))))[4:]
                 totalData['predictionBoxOffice'] = ''.join(
                     list(filter(lambda t: t != '', map(lambda x: x.strip(), predictionBoxOffice))))[4:]
-                yield Request(self.honor_url % (id), meta={'id': id, 'totalData': totalData, 'info': '下载%s honor' % id},
-                              callback=self.parse_honor, errback=self.errback)
+                item = MaoyanItem()
+                item['item'] = totalData
+                yield item
+                # yield Request(self.honor_url % (id), meta={'id': id, 'totalData': totalData, 'info': '下载%s honor' % id},
+                #               callback=self.parse_honor, errback=self.errback)
         except Exception as e:
             print('index', e)
             self.write_error('index' + id)
