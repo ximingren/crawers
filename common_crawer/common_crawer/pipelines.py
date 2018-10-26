@@ -76,7 +76,7 @@ class EbotappPipeline(object):
             print(e)
 
 class ZooplaPipeline(object):
-    collection_name = 'maoyan11'
+    collection_name = 'actor'
 
     def __init__(self, mongo_url, mongo_db,address_list):
         self.mongo_url = mongo_url
@@ -118,7 +118,7 @@ class ZooplaPipeline(object):
             # else:
             #     self.exporter[address].export_item(item)
             #     print('插入数据到%s文件成功'%address)
-                self.db[self.collection_name].update({'id':item['id']}, {'$set': dict(item)}, True)
+                self.db[self.collection_name].update({'_id':item['id']}, {'$set': dict(item)}, True)
                 logging.info("插入数据成功,ID为%s"%(item['id']))
                 return item
         except Exception as e:

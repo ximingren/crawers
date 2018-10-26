@@ -4,8 +4,9 @@ import re
 import requests
 import scrapy
 from fontTools.ttLib import TTFont
-from scrapy import Request
 
+from common_crawer.MongoQueue import MongoQueue
+from scrapy import Request
 from common_crawer.items import MaoyanActorItem
 
 
@@ -13,10 +14,16 @@ class MaoyanActorSpider(scrapy.Spider):
     name = 'actor'
     url = 'http://maoyan.com/films/celebrity/%s'
     fonts_dir = '/home/ximingren/Projects/Projects/crawer_summary/common_crawer/common_crawer/test_case/maoyan/fonts/'
-
+    queue = MongoQueue('maoyan', 'actorurl')
     def start_requests(self):
-        for id in range(20257,100000):
-            yield Request(self.url % str(id),meta={'id':str(id),'info':'%s'%str(id)})
+        while True:
+            try:
+                id,url = self.queue.pop()
+            except KeyError:
+                print('队列没有数据')
+                break
+            else:
+                yield Request(url,meta={'id':str(id),'info':'%s'%str(id)})
 
     def parse(self, response):
         id=response.meta['id']
@@ -77,6 +84,7 @@ class MaoyanActorSpider(scrapy.Spider):
             actor['relationsList']=relationsList
             item=MaoyanActorItem()
             item['item']=actor
+            self.queue.complete(response.url)
             yield item
 
     def create_font(self, font_file):

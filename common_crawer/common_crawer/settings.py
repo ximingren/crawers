@@ -104,8 +104,8 @@ ITEM_PIPELINES = {
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # 定义MongoDB
-MONGO_URI = "mongodb://123.207.42.164"
-MONGO_DATABASE = "maoyan"
+MONGO_URI = "mongodb://localhost"
+MONGO_DATABASE = "zoopla"
 
 # 定义日志
 LOG_LEVEL = "INFO"
