@@ -76,7 +76,7 @@ class EbotappPipeline(object):
             print(e)
 
 class ZooplaPipeline(object):
-    collection_name = 'maoyan11'
+    collection_name = 'douban'
 
     def __init__(self, mongo_url, mongo_db,address_list):
         self.mongo_url = mongo_url
