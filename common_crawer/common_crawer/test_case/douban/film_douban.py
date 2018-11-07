@@ -6,6 +6,7 @@ import pymongo
 import requests
 from lxml import etree
 from common_crawer.common_crawer.MongoQueue import MongoQueue
+CookieList=[]
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'zh-CN,zh;q=0.8',
@@ -88,7 +89,7 @@ def openlink(id,url,data):
     banIp=[]
     for tries in range(maxTryNum):
         try:
-            proxies=get_ip3()
+            proxies=get_ip()
             while(proxies in banIp):
                 proxies=get_ip3()
             print('使用代理',proxies)
@@ -98,20 +99,25 @@ def openlink(id,url,data):
                 headers['Host']='m.douban.com'
             headers['User-Agent']=random.choice(UserAgent_List)
             headers['Referer']=data['url']
-            # time.sleep(2)
-            res = requests.get(url, headers=headers,proxies=proxies)
-            if "https://sec.douban.com/a" in res.text:
-                banIp.append(proxies)
-                print('添加ban掉的',proxies)
-                break
-            #     res=openlink(url)
-            print(res.status_code)
-            if res.status_code==200:
-                print("请求成功",url)
-                return res
-            elif res.status_code==404:
-                doubanqueue.errorId(id)
-                break
+            time.sleep(0.5)
+            # proxies={'https': 'https://95.173.194.51:53281'}
+            ipUrl='http://api.ipify.org/'
+            ip_res=requests.get(ipUrl,proxies=proxies,timeout=10)
+            if ip_res.text!='125.88.24.185':
+                print(ip_res.text)
+                if len(CookieList)>0:
+                    res = requests.get(url,headers=headers,proxies=proxies,timeout=10)
+                else:
+                    res=requests.get(url,headers=headers,proxies=proxies,timeout=10)
+                CookieList.append(res.cookies)
+                print(res.status_code)
+                if res.status_code==200:
+                    print("请求成功",url)
+                    return res
+                elif res.status_code==404:
+                    pass
+                    doubanqueue.errorId(id)
+                    break
         except Exception  as e:
             print(e)
             if tries < (maxTryNum - 1):
@@ -119,8 +125,6 @@ def openlink(id,url,data):
             else:
                 print("尝试%d 次连接网址%s失败!" % (maxTryNum, url))
 def get_ip4():
-
-
     # 代理服务器
     proxyHost = "http-dyn.abuyun.com"
     proxyPort = "9010"
@@ -146,10 +150,10 @@ def get_ip():
     data = json.loads(response.text)
     proxies = random.choice(data['proxies'])
     if proxies['is_https']:
-        proxy = 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])
+        proxy = {'https':'https://' + str(proxies['ip']) + ":" + str(proxies['port'])}
     else:
-        proxy = 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])
-    return {'http':proxy}
+        proxy = {'http':'http://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+    return proxy
 
 def get_ip2():
     r = requests.get('http://127.0.0.1:8000/?types=0&count=5&country=国内')
