@@ -69,11 +69,14 @@ UserAgent_List = [
 def crawer_main():
     while True:
         try:
-
             id, url, star = doubanqueue.pop()
         except KeyError:
             print('队列没有数据')
         else:
+            nowTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+            print(nowTime)
+            if nowTime == '2018-11-08 06:00:12':
+                exit(1)
             data = {}
             data['url'] = url
             data['id'] = id
@@ -90,30 +93,27 @@ def openlink(id, url, data):
     """
     maxTryNum = 15
     banIp = []
+    global num
+    num = num + 1
     for tries in range(maxTryNum):
-        proxies = get_ip3()
+        proxies = validate_ip()
         try:
             while (proxies in banIp):
-                proxies = get_ip3()
-            # print('使用代理', proxies)
+                proxies = validate_ip()
+            print('使用代理', proxies)
             if not 'm.douban.com' in url:
                 headers['Host'] = 'movie.douban.com'
             else:
                 headers['Host'] = 'm.douban.com'
             headers['User-Agent'] = random.choice(UserAgent_List)
             headers['Referer'] = data['url']
-            time.sleep(1)
-            # proxies={'https': 'https://95.173.194.51:53281'}
-            # ipUrl = 'http://api.ipify.org/'
-            # ip_res=requests.get(ipUrl,proxies=proxies,timeout=10)
-            # if ip_res.text!='125.88.24.185':
-            # print(ip_res.text)
+            # time.sleep(3)
             if len(CookieList) > 0:
-                res = requests.get(url, headers=headers, timeout=10)
+                res = requests.get(url, headers=headers, proxies=proxies, timeout=10)
             else:
-                res = requests.get(url, headers=headers, timeout=10)
+                res = requests.get(url, headers=headers,proxies=proxies, timeout=10)
+            print('请求次数', num)
             CookieList.append(res.cookies)
-            print(res.status_code)
             if res.status_code == 200:
                 print("请求成功", url)
                 return res
@@ -126,8 +126,24 @@ def openlink(id, url, data):
             banIp.append(proxies)
             if tries < (maxTryNum - 1):
                 continue
-        else:
-            print("尝试%d 次连接网址%s失败!" % (maxTryNum, url))
+            else:
+                print("尝试%d 次连接网址%s失败!" % (tries, url))
+
+
+def validate_ip():
+    try:
+        text='125.88.24.18'
+        proxies=None
+        while (text == '125.88.24.18' ):
+            proxies = get_ip()
+            ipUrl = 'http://api.ipify.org/'
+            ip_res = requests.get(ipUrl,  timeout=6)
+            text=ip_res.text
+            print(text,proxies)
+        proxiesList.append(proxies)
+        return proxies
+    except Exception as e:
+        return random.choice(proxiesList)
 
 
 def get_ip4():
@@ -278,5 +294,7 @@ def crawer_topic(id, data):
 
 
 if __name__ == '__main__':
+    num = 0
+    proxiesList=[]
     doubanqueue = MongoQueue('douban', 'url3')
     crawer_main()
