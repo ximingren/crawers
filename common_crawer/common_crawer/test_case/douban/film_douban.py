@@ -6,6 +6,8 @@ import pymongo
 import requests
 from lxml import etree
 from common_crawer.common_crawer.MongoQueue import MongoQueue
+import socks
+import socket
 
 CookieList = []
 headers = {
@@ -111,7 +113,7 @@ def openlink(id, url, data):
             if len(CookieList) > 0:
                 res = requests.get(url, headers=headers, proxies=proxies, timeout=10)
             else:
-                res = requests.get(url, headers=headers,proxies=proxies, timeout=10)
+                res = requests.get(url, headers=headers, proxies=proxies, timeout=10)
             print('请求次数', num)
             CookieList.append(res.cookies)
             if res.status_code == 200:
@@ -132,18 +134,53 @@ def openlink(id, url, data):
 
 def validate_ip():
     try:
-        text='125.88.24.18'
-        proxies=None
-        while (text == '125.88.24.18' ):
-            proxies = get_ip()
+        text = '125.88.24.185'
+        proxies = None
+        while (text == '125.88.24.185'):
+            proxies = get_ip8()
             ipUrl = 'http://api.ipify.org/'
-            ip_res = requests.get(ipUrl,  timeout=6)
-            text=ip_res.text
-            print(text,proxies)
+            ip_res = requests.get(ipUrl, timeout=6)
+            text = ip_res.text
+            print(text, proxies)
         proxiesList.append(proxies)
         return proxies
     except Exception as e:
+        print(e)
         return random.choice(proxiesList)
+
+
+def get_ip1():
+    # scylla
+    print('代理池1')
+    response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True&https=true')
+    data = json.loads(response.text)
+    proxies = random.choice(data['proxies'])
+    if proxies['is_https']:
+        proxy = {'https': 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+    else:
+        proxy = {'http': 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+    return proxy
+
+
+def get_ip2():
+    # IPProxy
+    print('代理池2')
+    r = requests.get('http://127.0.0.1:8000/?types=0&count=5&country=%E5%9B%BD%E5%86%85&protocol=1')
+    ip_ports = json.loads(r.text)
+    ip = random.choice(ip_ports)[0]
+    port = random.choice(ip_ports)[1]
+    proxies = {
+        'https': 'https://%s:%s' % (ip, port),
+        # 'http': 'http://%s:%s' % (ip, port)
+    }
+    return proxies
+
+
+def get_ip3():
+    # proxy-pool,用的是redis 6378
+    response = requests.get('http://127.0.0.1:5010/get/')
+    print('代理池3')
+    return {'https': 'https://' + response.text}
 
 
 def get_ip4():
@@ -164,38 +201,42 @@ def get_ip4():
 
     proxies = {
         "http": proxyMeta,
-        # "https": proxyMeta,
+        "https": proxyMeta,
     }
     return proxies
 
 
-def get_ip():
-    response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
-    data = json.loads(response.text)
-    proxies = random.choice(data['proxies'])
-    if proxies['is_https']:
-        proxy = {'https': 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])}
-    else:
-        proxy = {'http': 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])}
-    return proxy
-
-
-def get_ip2():
-    r = requests.get('http://127.0.0.1:8000/?types=0&count=5&country=国内')
-    ip_ports = json.loads(r.text)
-    ip = ip_ports[0][0]
-    port = ip_ports[0][1]
-    proxies = {
-        'http': 'http://%s:%s' % (ip, port),
-        'https': 'http://%s:%s' % (ip, port)
-    }
+def get_ip5():
+    # 芝麻代理
+    res = requests.get(
+        "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=&city=0&yys=0&port=11&pack=34488&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions=")
+    data = res.json()['data'][0]
+    ip = data['ip']
+    port = data['port']
+    proxies = {'https': 'https://%s:%s' % (ip, port)}
     return proxies
 
 
-def get_ip3():
-    response = requests.get('http://127.0.0.1:5010/get/')
-    return {'http': 'http://' + response.text}
+def get_ip6():
+    # proxy_list
+    print('代理池6')
+    res = requests.get("http://localhost:8111/proxy")
+    ip = res.json()[0][0]
+    port = res.json()[0][1]
+    print(ip)
+    proxies = {'https': 'https://%s:%s' % (ip, port)}
+    return proxies
 
+
+def get_ip7():
+    print('代理池7')
+    res = requests.get('http://localhost:22555/get_one/')
+    return {'https': 'https://' + res.text}
+
+def get_ip8():
+    print('代理池8')
+    res=requests.get('http://localhost:5555/random')
+    return {'https':'https://'+res.text}
 
 def crawer_detail(id, url, data):
     detailRes = openlink(id, url, data)
@@ -295,6 +336,9 @@ def crawer_topic(id, data):
 
 if __name__ == '__main__':
     num = 0
-    proxiesList=[]
+    proxiesList = []
     doubanqueue = MongoQueue('douban', 'url3')
     crawer_main()
+    # socks.set_default_proxy(socks.SOCKS5, "127.0.0.1", 9050)
+    # socket.socket = socks.socksocket
+    # print(requests.get('http://api.ipify.org?format=json').text)
