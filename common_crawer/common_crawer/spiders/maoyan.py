@@ -14,9 +14,9 @@ from scrapy import Request
 from common_crawer.items import MaoyanItem
 
 # TODO 错误了发邮件，或者提示信息。
-#
-class DoubanSpider(scrapy.Spider):
-    name = 'douban'
+# TODO 去重
+class MaoyanSpider(scrapy.Spider):
+    name = 'maoyan'
     index_url = "https://piaofang.maoyan.com/movie/%s"
     honor_url = 'http://m.maoyan.com/movie/%s/honor'
     trailer_url = "https://piaofang.maoyan.com/movie/%s/promption-ajax?method=change&type=trailers&typeId=0&date=2018-10-10__2018-10-24"
@@ -33,29 +33,30 @@ class DoubanSpider(scrapy.Spider):
         'Pragma': 'no-cache',
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3423.2 Safari/537.36',
     }
-    indexqueue=MongoQueue('maoyan','indexurl')
+    indexqueue=MongoQueue('maoyan','filmUlr')
     # honorqueue=MongoQueue('maoyan','honorurl')
     # trailersqueue=MongoQueue('maoyan','trailersurl')
     # weiboqueue=MongoQueue('maoyan','weibourl')
     # wechatqueue=MongoQueue('maoyan','wechaturl')
     # baiduqueue=MongoQueue('maoyan','baiduurl')
     # celebrityqueue=MongoQueue('maoyan','celebrityurl')
-    cli = MongoClient('123.207.42.164')
-    db = cli['maoyan']
+    # cli = MongoClient('123.207.42.164')
+    # db = cli['maoyan']
     # document = db['maoyan11']
-    document1 = db['againurl']
-
+    # document1 = db['againurl']
+    indexUrl='https://piaofang.maoyan.com/movie/%s'
     def start_requests(self):
         # for id in range(250000,500000):
         #     totalData = {}
         while True:
             try:
-                id,url = self.indexqueue.pop()
+                id= self.indexqueue.popId()
             except KeyError:
                 print('队列没有数据')
                 break
             else:
                 totalData={}
+                url=self.indexUrl%id
         # for i in self.document1.find():
         #     id=i['id']
         #     totalData={}
@@ -71,6 +72,7 @@ class DoubanSpider(scrapy.Spider):
             name = response.xpath(
                 "//div[@class='info-base']/div[@class='info-detail']/div[@class='info-detail-title']//text()").extract()
             category = response.xpath(
+
                 "//div[@class='info-base']/div[@class='info-detail']/div[@class='info-detail-extra']/div[@class='detail-list']/div[@class='detail-list-content']/p[@class='info-category']//text()").extract()
             runningTime = response.xpath("//div[@class='info-source-duration']//text()").extract()
             releaseTime = response.xpath("//div[@class='info-release']//text()").extract()

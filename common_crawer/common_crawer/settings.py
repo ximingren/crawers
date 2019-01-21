@@ -22,24 +22,24 @@ NEWSPIDER_MODULE = 'common_crawer.spiders'
 ROBOTSTXT_OBEY = False
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # 并发的request连接数
-CONCURRENT_REQUESTS = 600
+CONCURRENT_REQUESTS = 20
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 # 定义下载延时
-DOWNLOAD_DELAY = 1
+DOWNLOAD_DELAY = 3
 # 定义下载超时
 DOWNLOAD_TIMEOUT = 20
 # 每个并发最大的ip限制数
-CONCURRENT_REQUESTS_PER_IP = 40
+CONCURRENT_REQUESTS_PER_IP = 1
 # The download delay setting will honor only one of:
 # CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
 # 禁止cookie
-COOKIES_ENABLED = False
+COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 # TELNETCONSOLE_ENABLED = False
@@ -105,7 +105,7 @@ ITEM_PIPELINES = {
 
 # 定义MongoDB
 MONGO_URI = "mongodb://123.207.42.164"
-MONGO_DATABASE = "douban"
+MONGO_DATABASE = "maoyan"
 
 # 定义日志
 LOG_LEVEL = "INFO"

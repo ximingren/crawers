@@ -1,3 +1,4 @@
+import datetime
 import json
 import random
 import time
@@ -9,6 +10,8 @@ from common_crawer.common_crawer.MongoQueue import MongoQueue
 import socks
 import socket
 
+from common_crawer.common_crawer.proxys import *
+
 CookieList = []
 headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -18,11 +21,10 @@ headers = {
     'Cache-Control': 'no-cache',
     'Host': 'movie.douban.com',
     'Pragma': 'no-cache',
-    'Referer': 'www.baidu.com',
-    # 'Cookie': 'll="118282"; bid=ctyiEarSLfw; ps=y; __yadk_uid=0Sr85yZ9d4bEeLKhv4w3695OFOPoedzC; dbcl2="155150959:OEu4dds1G1o"; as="https://sec.douban.com/b?r=https%3A%2F%2Fbook.douban.com%2F"; ck=fTrQ; _pk_id.100001.4cf6=c86baf05e448fb8d.1506160776.3.1507290432.1507283501.; _pk_ses.100001.4cf6=*; __utma=30149280.1633528206.1506160772.1507283346.1507290433.3; __utmb=30149280.0.10.1507290433; __utmc=30149280; __utmz=30149280.1506160772.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utma=223695111.1475767059.1506160772.1507283346.1507290433.3; __utmb=223695111.0.10.1507290433; __utmc=223695111; __utmz=223695111.1506160772.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); push_noty_num=0; push_doumail_num=0',
-
+    'Referer': 'www.douban.com',
+    'Cookie':'bid=lIu3h3JHU8M; ll="108169"; __utmc=30149280; __utmc=223695111; _vwo_uuid_v2=D92E42ED83B9D3D469075A00519B6B8A4|62af73017681c772484022afcd94f375; __utmz=223695111.1541655047.3.2.utmcsr=iaas.cloud.tencent.com|utmccn=(referral)|utmcmd=referral|utmcct=/webshell; ps=y; push_noty_num=0; push_doumail_num=0; gr_user_id=1b34b294-fc4a-4cc1-a473-b8d0ad8178de; __utma=223695111.1497463613.1541598313.1541764269.1543036448.8; douban-profile-remind=1; __utmv=30149280.18703; __utma=30149280.460722265.1541598313.1543036448.1543036885.9; __utmz=30149280.1543036885.9.3.utmcsr=google|utmccn=(organic)|utmcmd=organic|utmctr=(not%20provided); _pk_ref.100001.4cf6=%5B%22%22%2C%22%22%2C1543110769%2C%22https%3A%2F%2Fwww.douban.com%2F%22%5D; _pk_ses.100001.4cf6=*; ap_v=0,6.0; as="https://movie.douban.com/subject/27015848/"; dbcl2="187800715:DA1Oe6nPBl8"; ck=9uuX; _pk_id.100001.4cf6=21d9ea0b8d8a8647.1541598312.21.1543110887.1543037453.',
     # 'Upgrade-Insecure-Requests':'1',
-    # 'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+    'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
 }
 UserAgent_List = [
     "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36",
@@ -75,10 +77,8 @@ def crawer_main():
         except KeyError:
             print('队列没有数据')
         else:
-            nowTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-            print(nowTime)
-            if nowTime == '2018-11-08 06:00:12':
-                exit(1)
+            global starttime
+            starttime = datetime.datetime.now()
             data = {}
             data['url'] = url
             data['id'] = id
@@ -115,14 +115,17 @@ def openlink(id, url, data):
             else:
                 res = requests.get(url, headers=headers, proxies=proxies, timeout=10)
             print('请求次数', num)
+            print(res.status_code)
+            # if (num > 260):
+            #     time.sleep(1800)
             CookieList.append(res.cookies)
             if res.status_code == 200:
                 print("请求成功", url)
                 return res
             elif res.status_code == 404:
-                pass
-                doubanqueue.errorId(id)
+                print(url)
                 break
+                # doubanqueue.errorId(id)
         except Exception  as e:
             print(e)
             banIp.append(proxies)
@@ -135,108 +138,48 @@ def openlink(id, url, data):
 def validate_ip():
     try:
         text = '125.88.24.185'
-        proxies = None
-        while (text == '125.88.24.185'):
-            proxies = get_ip8()
-            ipUrl = 'http://api.ipify.org/'
-            ip_res = requests.get(ipUrl, timeout=6)
-            text = ip_res.text
-            print(text, proxies)
-        proxiesList.append(proxies)
-        return proxies
+        # while (text == '125.88.24.185'):
+        # if(endtime==None):
+        #     get_ip10()
+        # elif(starttime-endtime> datetime.timedelta(seconds=180)):
+        # time.sleep(3)
+        proxy = get_ip1()
+        # get_ip10()
+        # proxies=random.choice(proxiesList)
+        # ipUrl = 'http://api.ipify.org/'
+        # ip_res = requests.get(ipUrl, timeout=6)
+        # text = ip_res.text
+        # print(text, proxies)
+        # proxiesList.append(proxies)
+        return proxy
     except Exception as e:
         print(e)
         return random.choice(proxiesList)
 
 
-def get_ip1():
-    # scylla
-    print('代理池1')
-    response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True&https=true')
-    data = json.loads(response.text)
-    proxies = random.choice(data['proxies'])
-    if proxies['is_https']:
-        proxy = {'https': 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+def save_database(data):
+    cli = pymongo.MongoClient('123.207.42.164', 27017)
+    db = cli['douban']
+    try:
+        db['douban2'].update({'_id': data['id']}, {'$set': data}, True)
+    except Exception as e:
+        print('保存数据错误到数据库')
     else:
-        proxy = {'http': 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])}
-    return proxy
+        print('保存数据成功到数据库', data['id'])
 
 
-def get_ip2():
-    # IPProxy
-    print('代理池2')
-    r = requests.get('http://127.0.0.1:8000/?types=0&count=5&country=%E5%9B%BD%E5%86%85&protocol=1')
-    ip_ports = json.loads(r.text)
-    ip = random.choice(ip_ports)[0]
-    port = random.choice(ip_ports)[1]
-    proxies = {
-        'https': 'https://%s:%s' % (ip, port),
-        # 'http': 'http://%s:%s' % (ip, port)
-    }
-    return proxies
+def parse_content(Content, data):
+    valueList = ''.join(Content).split(Content[0])
+    for i in valueList:
+        if i != '':
+            if (len(i.split(': '))) == 2:
+                key = i.split(': ')[0]
+                value = i.split(': ')[1]
+                if 'IMDb链接' in key:
+                    data[key] = 'http://www.imdb.com/title/' + value.replace('\n', '') + '/'
+                else:
+                    data[key] = value
 
-
-def get_ip3():
-    # proxy-pool,用的是redis 6378
-    response = requests.get('http://127.0.0.1:5010/get/')
-    print('代理池3')
-    return {'https': 'https://' + response.text}
-
-
-def get_ip4():
-    # 代理服务器
-    proxyHost = "http-dyn.abuyun.com"
-    proxyPort = "9010"
-
-    # 代理隧道验证信息
-    proxyUser = "HCD2I6F04L7TCOFP"
-    proxyPass = "304B0FB51A25B5E6"
-
-    proxyMeta = "http://%(user)s:%(pass)s@%(host)s:%(port)s" % {
-        "host": proxyHost,
-        "port": proxyPort,
-        "user": proxyUser,
-        "pass": proxyPass,
-    }
-
-    proxies = {
-        "http": proxyMeta,
-        "https": proxyMeta,
-    }
-    return proxies
-
-
-def get_ip5():
-    # 芝麻代理
-    res = requests.get(
-        "http://webapi.http.zhimacangku.com/getip?num=1&type=2&pro=&city=0&yys=0&port=11&pack=34488&ts=0&ys=0&cs=0&lb=1&sb=0&pb=4&mr=1&regions=")
-    data = res.json()['data'][0]
-    ip = data['ip']
-    port = data['port']
-    proxies = {'https': 'https://%s:%s' % (ip, port)}
-    return proxies
-
-
-def get_ip6():
-    # proxy_list
-    print('代理池6')
-    res = requests.get("http://localhost:8111/proxy")
-    ip = res.json()[0][0]
-    port = res.json()[0][1]
-    print(ip)
-    proxies = {'https': 'https://%s:%s' % (ip, port)}
-    return proxies
-
-
-def get_ip7():
-    print('代理池7')
-    res = requests.get('http://localhost:22555/get_one/')
-    return {'https': 'https://' + res.text}
-
-def get_ip8():
-    print('代理池8')
-    res=requests.get('http://localhost:5555/random')
-    return {'https':'https://'+res.text}
 
 def crawer_detail(id, url, data):
     detailRes = openlink(id, url, data)
@@ -279,29 +222,6 @@ def crawer_detail(id, url, data):
         print(e)
 
 
-def save_database(data):
-    cli = pymongo.MongoClient('123.207.42.164', 27017)
-    db = cli['douban']
-    try:
-        db['douban2'].update({'_id': data['id']}, {'$set': data}, True)
-    except Exception as e:
-        print('保存数据错误到数据库')
-    else:
-        print('保存数据成功到数据库', data['id'])
-
-
-def parse_content(Content, data):
-    valueList = ''.join(Content).split(Content[0])
-    for i in valueList:
-        if i != '':
-            key = i.split(': ')[0]
-            value = i.split(': ')[1]
-            if 'IMDb链接' in key:
-                data[key] = 'https://www.imdb.com/title/' + value.replace('\n', '') + '/'
-            else:
-                data[key] = value
-
-
 def crawer_award(id, data):
     awardUrl = 'https://movie.douban.com/subject/%s/awards/' % id
     awardRes = openlink(id, awardUrl, data)
@@ -336,6 +256,7 @@ def crawer_topic(id, data):
 
 if __name__ == '__main__':
     num = 0
+    endtime = None
     proxiesList = []
     doubanqueue = MongoQueue('douban', 'url3')
     crawer_main()

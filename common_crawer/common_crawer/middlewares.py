@@ -9,6 +9,8 @@ import logging
 import random
 
 import requests
+
+from common_crawer.MongoQueue import MongoQueue
 from scrapy import signals
 from scrapy.core.downloader.handlers.http11 import TunnelError
 from twisted.internet import error
@@ -68,6 +70,7 @@ class CommonCrawerDownloaderMiddleware(object):
     # passed objects.
 
     ban_ips = []
+
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
@@ -85,16 +88,20 @@ class CommonCrawerDownloaderMiddleware(object):
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
         if 'info' in request.meta.keys():
-            logging.info(str(request.meta['info'])+' 下载页面 '+request.url)
+            logging.info(str(request.meta['info']) + ' 下载页面 ' + request.url)
         logging.info("准备请求下载%s页面" % request.url)
-        logging.info("请求参数为%s"%str(request.body.decode('utf8')))
-        if request.headers.get('Host')!='m.douban.com':
+
+        logging.info("请求参数为%s" % str(request.body.decode('utf8')))
+        if request.headers.get('Host') != 'm.douban.com':
             request.headers.setdefault("Referer", request.url)
         if spider.settings['USE_PROXY']:
             proxy = self.valid_proxies()
-            # proxy="https://185.93.3.70:8080"
+            if 'sec.douban' in request.url:
+                print('ban掉')
+                request.meta['proxy'] = proxy
             logging.info('使用代理%s' % proxy)
             request.meta['proxy'] = proxy
+        print(request.meta)
         return None
 
     def process_response(self, request, response, spider):
@@ -105,10 +112,11 @@ class CommonCrawerDownloaderMiddleware(object):
         # - or raise IgnoreRequest
         if response.status == 200:
 
-            logging.info("下载页面成功%s!!!!!!!!!!!"%response.url)
+            logging.info("下载页面成功%s!!!!!!!!!!!" % response.url)
             return response
         else:
             return request
+
     def process_exception(self, request, exception, spider):
         # Called when a download handler or a process_request()
         # (from other downloader middleware) raises an exception.
@@ -117,7 +125,7 @@ class CommonCrawerDownloaderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response bject: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
-        logging.info("发生异常%s"%request.url)
+        logging.info("发生异常%s" % request.url)
         if isinstance(exception, TunnelError) or isinstance(exception, error.TimeoutError):
             logging.error("发生异常%s" % str(exception))
             if spider.settings['USE_PROXY']:
@@ -127,31 +135,64 @@ class CommonCrawerDownloaderMiddleware(object):
                 # proxy='http://104.238.146.146:8118'
                 # request.meta['proxy'] = proxy
                 return request
-        with open('error.txt','a') as f:
+        with open('error.txt', 'a') as f:
             f.write(str(request.body))
         return None
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
 
-    def get_proxy(self):
-        # response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True')
-        # data = json.loads(response.text)
-        # proxies = random.choice(data['proxies'])
-        # if proxies['is_https']:
-        #     proxy = 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])
-        # else:
-        #     proxy = 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])
-        # return proxy
 
-        # response=requests.get('http://localhost:12345/api/proxy/')
-        # data=response.json()
-        # return data['data']['detail'][0]['url']
-        response=requests.get('http://127.0.0.1:5010/get/')
-        return 'http://'+response.text
+    def get_ip1(self):
+        print('代理池1')
+        response = requests.get('http://localhost:8899/api/v1/proxies?anonymous=True&https=true')
+        data = json.loads(response.text)
+        proxies = random.choice(data['proxies'])
+        if proxies['is_https']:
+            proxy = {'https': 'https://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+        else:
+            proxy = {'http': 'http://' + str(proxies['ip']) + ":" + str(proxies['port'])}
+        return proxy['https']
+
+    def get_ip2(self):
+        print('代理池2')
+        r = requests.get('http://127.0.0.1:8000/?types=0&count=5&country=%E5%9B%BD%E5%86%85&protocol=1')
+        ip_ports = json.loads(r.text)
+        ip = random.choice(ip_ports)[0]
+        port = random.choice(ip_ports)[1]
+        proxies = {
+            'http': 'https://%s:%s' % (ip, port),
+            'https': 'http://%s:%s' % (ip, port)
+        }
+        return proxies['https']
+
+    def get_ip3(self):
+        # proxy-pool,用的是redis 6378
+        response = requests.get('http://127.0.0.1:5010/get_all/')
+        print('代理池3')
+        proxy = random.choice(list(response.json()))
+        return 'https://' + proxy
+
+    def get_ip7(self):
+        print('代理池7')
+        # IP-POOL
+        res = requests.get('http://localhost:22555/get_all/')
+        result = random.choice(res.json())
+        return 'https://' + result
+
+    def get_ip9(self):
+        # fpserver
+        print('代理池9')
+        res = requests.get('http://localhost:12345/api/proxy/?count=100&scheme=HTTPs&anonymity=anonymous')
+        proxy = random.choice(res.json()['data']['detail'])['url']
+        return proxy
+
+    def get_ip10(self):
+        q = MongoQueue('proxy', 'zhima')
+        return q.popProxy()['http']
 
     def valid_proxies(self):
-        proxy = self.get_proxy()
+        proxy = self.get_ip1()
         while proxy in self.ban_ips:
-            proxy = self.get_proxy()
+            proxy = self.get_ip1()
         return proxy

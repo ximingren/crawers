@@ -11,7 +11,7 @@ class DoubanSpider(scrapy.Spider):
     name = 'doubanFilm'
     awardUrl = 'https://movie.douban.com/subject/%s/awards/'
     topicUrl = 'https://m.douban.com/rexxar/api/v2/gallery/subject_feed?start=%s&count=4&subject_id=%s&ck=null'
-    doubanqueue = MongoQueue('douban', 'url')
+    doubanqueue = MongoQueue('douban', 'url3')
 
     def start_requests(self):
         while True:
@@ -19,7 +19,6 @@ class DoubanSpider(scrapy.Spider):
                 id,url,star = self.doubanqueue.pop()
             except KeyError:
                 print('队列没有数据')
-                break
             else:
                 data={}
                 data['id']=id
@@ -102,12 +101,9 @@ class DoubanSpider(scrapy.Spider):
         valueList = ''.join(Content).split(Content[0])
         for i in valueList:
             if i != '':
-                try:
-                    key = i.split(':')[0]
-                    value = i.split(':')[1]
-                except:
-                    pass
-                else:
+                if (len(i.split(': '))) == 2:
+                    key = i.split(': ')[0]
+                    value = i.split(': ')[1]
                     if key == 'IMDb链接':
                         data[key] = 'https://www.imdb.com/title/' + value.replace('\n', '') + '/'
                     else:

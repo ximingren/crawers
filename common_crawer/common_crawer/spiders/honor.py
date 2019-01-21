@@ -4,6 +4,8 @@ import re
 import requests
 from lxml import etree
 from pymongo import MongoClient
+
+from common_crawer.MongoQueue import MongoQueue
 from scrapy.log import logger
 
 import scrapy
@@ -28,14 +30,17 @@ class HonorSpider(scrapy.Spider):
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3423.2 Safari/537.36',
     }
     name = 'honor'
-    cli = MongoClient('123.207.42.164')
-    db = cli['maoyan']
-    document1 = db['needAgain']
 
+    againqueue=MongoQueue('maoyan','needAgain2')
     def start_requests(self):
-            result = self.document1.find({'status': 1})
-            for r in result:
-                id = r['id']
+        while True:
+            try:
+                self.againqueue.repair()
+                id, url = self.againqueue.pop()
+            except KeyError:
+                print('队列没有数据')
+                break
+            else:
                 totalData = {}
                 yield Request(self.honor_url % id,
                               meta={'id': str(id), 'info': '下载%s honor' % str(id), 'totalData': totalData},
@@ -234,7 +239,7 @@ class HonorSpider(scrapy.Spider):
             totalData.update(category_data)
             item = MaoyanItem()
             item['item'] = totalData
-            self.document1.update({'id': id}, {'$set': {'status': '3'}}, True)
+            self.againqueue.completeId(id)
             yield item
         except Exception as e:
             print('actor', e)
