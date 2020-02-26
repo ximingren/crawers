@@ -149,10 +149,3 @@ class WeiBoLogin(object):
         password=binascii.b2a_hex(password)
         return password.decode()
 
-if __name__ =="__main__":
-    weibo=WeiBoLogin()
-    cookies=weibo.login('987327263@qq.com','fengdou123')
-    print(cookies)
-    for item,value in cookies:
-        print(item)
-        print(value)
